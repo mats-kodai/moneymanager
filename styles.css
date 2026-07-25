@@ -415,7 +415,7 @@ button, input, select, textarea {
 /* --- Summary Cards Grid --- */
 .summary-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 24px;
     margin-bottom: 24px;
 }
@@ -540,6 +540,97 @@ button, input, select, textarea {
 
 .large-chart {
     height: 320px !important;
+}
+
+/* --- Chart Toggles & Range Selectors --- */
+.chart-toggles-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.chart-range-selector {
+    display: flex;
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-sm);
+    padding: 3px;
+    gap: 2px;
+}
+
+.btn-range {
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 4px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+}
+
+.btn-range.active {
+    background-color: var(--card-bg);
+    color: var(--color-primary-text);
+    box-shadow: var(--shadow-sm);
+}
+
+/* --- Asset Details Panel --- */
+.asset-details-list {
+    margin-top: 20px;
+    background: var(--bg-primary);
+    border-radius: var(--border-radius-md);
+    padding: 16px;
+    border: 1px dashed var(--card-border);
+}
+
+.hover-details-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.details-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+}
+
+.detail-item {
+    background: var(--card-bg);
+    padding: 10px;
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--card-border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.detail-item.highlight {
+    background: rgba(42, 122, 0, 0.06);
+    border-color: rgba(42, 122, 0, 0.2);
+}
+
+.detail-item.highlight .item-value {
+    color: var(--color-primary-text);
+    font-weight: 700;
+}
+
+.item-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.item-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
 /* --- Charts Section --- */
@@ -1378,6 +1469,10 @@ textarea.form-input {
     .form-layout, .transactions-table-card {
         margin-bottom: 40px; /* 干渉防止のマージンを追加 */
     }
+
+    #tab-dashboard, #tab-settings {
+        padding-bottom: 60px; /* ボトムバーとの干渉防止パディング */
+    }
     
     /* 支出明細・最近の支出テーブルをモバイル用カード表示（2列レイアウト）に変更 */
     #tab-transactions #subtab-expense-list .main-table thead,
@@ -1449,6 +1544,26 @@ textarea.form-input {
         grid-template-columns: repeat(2, 1fr);
         gap: 12px;
         margin-bottom: 20px;
+    }
+
+    .summary-grid .summary-card:last-child {
+        grid-column: span 2;
+    }
+
+    .card-header-flex {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .chart-toggles-wrapper {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .details-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
     }
     
     .summary-card {
@@ -1543,6 +1658,25 @@ textarea.form-input {
 @media (max-width: 480px) {
     .summary-grid {
         grid-template-columns: 1fr;
+    }
+
+    .summary-grid .summary-card:last-child {
+        grid-column: span 1;
+    }
+
+    .details-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+    }
+    
+    .chart-toggles-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .chart-range-selector, .chart-toggles {
+        justify-content: center;
     }
     
     .card-value {

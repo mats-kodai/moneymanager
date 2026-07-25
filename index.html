@@ -119,7 +119,19 @@
                         </div>
                     </div>
 
-                    <!-- Card 4: Subscriptions Burden -->
+                    <!-- Card 4: Monthly Balance -->
+                    <div class="summary-card balance">
+                        <div class="card-header">
+                            <span class="card-label">今月の収支</span>
+                            <div class="card-icon-wrapper"><i class="fa-solid fa-scale-balanced"></i></div>
+                        </div>
+                        <div class="card-value" id="monthly-balance">¥0</div>
+                        <div class="card-trend" id="balance-trend">
+                            <span>前月同日比: ¥0</span>
+                        </div>
+                    </div>
+
+                    <!-- Card 5: Subscriptions Burden -->
                     <div class="summary-card subscription">
                         <div class="card-header">
                             <span class="card-label">サブスク月額負担</span>
@@ -136,13 +148,53 @@
                 <div class="chart-card asset-history-card">
                     <div class="card-header-flex">
                         <h3>週次資産推移 (総資産・ポートフォリオ)</h3>
-                        <div class="chart-toggles">
-                            <button class="btn-toggle active" id="btn-toggle-total">総資産のみ</button>
-                            <button class="btn-toggle" id="btn-toggle-breakdown">内訳も表示</button>
+                        <div class="chart-toggles-wrapper">
+                            <div class="chart-range-selector">
+                                <button class="btn-range active" data-range="all">全期間</button>
+                                <button class="btn-range" data-range="1m">1ヶ月</button>
+                                <button class="btn-range" data-range="3m">3ヶ月</button>
+                                <button class="btn-range" data-range="6m">半年</button>
+                                <button class="btn-range" data-range="1y">1年</button>
+                            </div>
+                            <div class="chart-toggles">
+                                <button class="btn-toggle active" id="btn-toggle-total">総資産のみ</button>
+                                <button class="btn-toggle" id="btn-toggle-breakdown">内訳も表示</button>
+                            </div>
                         </div>
                     </div>
                     <div class="chart-wrapper large-chart">
                         <canvas id="asset-trend-chart"></canvas>
+                    </div>
+                    
+                    <!-- Asset Hover/Touch Details for Mobile -->
+                    <div class="asset-details-list" id="asset-hover-details">
+                        <div class="hover-details-title">選択中の資産内訳（グラフをなぞって表示）</div>
+                        <div class="details-grid">
+                            <div class="detail-item">
+                                <span class="item-label">日付</span>
+                                <span class="item-value" id="hover-date">-</span>
+                            </div>
+                            <div class="detail-item highlight">
+                                <span class="item-label">総資産</span>
+                                <span class="item-value" id="hover-total">¥0</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="item-label">現金・預金</span>
+                                <span class="item-value" id="hover-cash">¥0</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="item-label">株式(現物)</span>
+                                <span class="item-value" id="hover-stocks">¥0</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="item-label">投資信託</span>
+                                <span class="item-value" id="hover-trusts">¥0</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="item-label">ポイント</span>
+                                <span class="item-value" id="hover-points">¥0</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

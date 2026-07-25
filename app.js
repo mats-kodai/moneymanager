@@ -13,6 +13,7 @@ const state = {
     incomeTypes: ["給与所得", "配当所得", "譲渡所得", "その他"],
     currentMonth: new Date(2026, 6, 1), // デフォルト表示をデータが豊富な 2026年7月 に設定
     showAssetsBreakdown: false, // 資産の内訳表示フラグ
+    assetRange: 'all',          // 資産グラフの表示期間 ('all', '1m', '3m', '6m', '1y')
     isDemoMode: true
 };
 
@@ -353,6 +354,24 @@ function loadDemoMode() {
     renderDashboard();
 }
 
+// --- Dashboard Update Date Formatting Helper ---
+function formatAssetUpdateDate(dateStr) {
+    if (!dateStr) return "週次データなし";
+    const parts = dateStr.split(" ");
+    const dateParts = parts[0].split("/");
+    if (dateParts.length < 3) return dateStr;
+    
+    const year = dateParts[0];
+    const month = parseInt(dateParts[1]);
+    const day = parseInt(dateParts[2]);
+    
+    let timeStr = "";
+    if (parts[1]) {
+        timeStr = " " + parts[1];
+    }
+    return `${year}年${month}月${day}日${timeStr}更新`;
+}
+
 // --- Dashboard Render Logic ---
 function renderDashboard() {
     // 1. 各集計値の計算
@@ -435,7 +454,7 @@ function renderDashboard() {
         const sortedAssets = [...state.assets].sort((a, b) => new Date(a.date.split(" ")[0]) - new Date(b.date.split(" ")[0]));
         const latest = sortedAssets[sortedAssets.length - 1];
         latestAssetVal = latest.total;
-        latestAssetDate = `${latest.date.substring(5)} 更新`;
+        latestAssetDate = formatAssetUpdateDate(latest.date);
 
         // 前月の一番若い（最も古い日付の）レコードを探す
         const prevMonthYear = prevMonthDate.getFullYear();
@@ -468,6 +487,34 @@ function renderDashboard() {
     document.getElementById('total-expenses').textContent = formatCurrency(allExpensesTotal);
     document.getElementById('expense-desc-card').innerHTML = `<span>変動費: ${formatCurrency(allExpensesTotal - totalSubsMonthly)} ＋ サブスク (${expenseTrendText})</span>`;
     
+    // 今月の収支の集計と描画
+    // 今月の収支 ＝ 今月の手取り収入 - 今月の総支出（1日〜基準日までの変動費 + サブスク）
+    const currentBalance = totalIncome - totalExpenses;
+    const prevBalance = prevTotalIncome - prevTotalExpenses;
+    const balanceDiff = currentBalance - prevBalance;
+    const balanceDiffSign = balanceDiff >= 0 ? "+" : "";
+    
+    const balanceEl = document.getElementById('monthly-balance');
+    const balanceTrendEl = document.getElementById('balance-trend');
+    
+    if (balanceEl) {
+        balanceEl.textContent = formatCurrency(currentBalance);
+        if (currentBalance >= 0) {
+            balanceEl.className = 'card-value text-primary';
+        } else {
+            balanceEl.className = 'card-value text-danger';
+        }
+    }
+    
+    if (balanceTrendEl) {
+        if (balanceDiff >= 0) {
+            balanceTrendEl.className = 'card-trend text-success';
+        } else {
+            balanceTrendEl.className = 'card-trend text-danger';
+        }
+        balanceTrendEl.innerHTML = `<span>${isCurrentMonth ? "前月同日比" : "前月比"}: ${balanceDiffSign}${formatCurrency(balanceDiff)}</span>`;
+    }
+
     document.getElementById('total-subs-monthly').textContent = formatCurrency(totalSubsMonthly);
     document.getElementById('total-subs-count').innerHTML = `<span>契約数: ${state.subscriptions.length} 件</span>`;
 
@@ -530,12 +577,47 @@ function renderActiveSubsTable() {
 // --- Chart.js Draw Functions (Light Mode Custom Styling) ---
 
 // 週次資産推移チャート
+// 週次資産推移チャート
 function renderAssetChart() {
     const ctx = document.getElementById('asset-trend-chart').getContext('2d');
     
     // 日付昇順でソート
-    const sortedAssets = [...state.assets].sort((a, b) => new Date(a.date.split(" ")[0]) - new Date(b.date.split(" ")[0]));
-    const labels = sortedAssets.map(a => a.date.split(" ")[0].substring(5)); // 月/日のみ
+    let sortedAssets = [...state.assets].sort((a, b) => new Date(a.date.split(" ")[0]) - new Date(b.date.split(" ")[0]));
+    
+    // 表示期間でフィルタリング
+    if (state.assetRange && state.assetRange !== 'all' && sortedAssets.length > 0) {
+        // 最新レコードの日付を基準にする
+        const latestDate = new Date(sortedAssets[sortedAssets.length - 1].date.split(" ")[0]);
+        let cutoffDate = new Date(latestDate);
+        
+        if (state.assetRange === '1m') {
+            cutoffDate.setMonth(latestDate.getMonth() - 1);
+        } else if (state.assetRange === '3m') {
+            cutoffDate.setMonth(latestDate.getMonth() - 3);
+        } else if (state.assetRange === '6m') {
+            cutoffDate.setMonth(latestDate.getMonth() - 6);
+        } else if (state.assetRange === '1y') {
+            cutoffDate.setFullYear(latestDate.getFullYear() - 1);
+        }
+        
+        sortedAssets = sortedAssets.filter(a => new Date(a.date.split(" ")[0]) >= cutoffDate);
+    }
+
+    // 詳細リストの初期表示（最新レコードを初期セット）
+    if (sortedAssets.length > 0) {
+        updateAssetDetailPanel(sortedAssets[sortedAssets.length - 1]);
+    } else {
+        // データがない場合は空欄リセット
+        document.getElementById('hover-date').textContent = '-';
+        document.getElementById('hover-total').textContent = '¥0';
+        document.getElementById('hover-cash').textContent = '¥0';
+        document.getElementById('hover-stocks').textContent = '¥0';
+        document.getElementById('hover-trusts').textContent = '¥0';
+        document.getElementById('hover-points').textContent = '¥0';
+    }
+
+    const labels = sortedAssets.map(a => a.date.split(" ")[0]); // 年月日すべて表示
+    const themeColor = '#2a7a00'; // フォレストグリーン
 
     if (assetTrendChart) {
         assetTrendChart.destroy();
@@ -549,8 +631,8 @@ function renderAssetChart() {
         const totals = sortedAssets.map(a => a.total);
         
         const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-        gradient.addColorStop(0, 'rgba(79, 70, 229, 0.2)');
-        gradient.addColorStop(1, 'rgba(79, 70, 229, 0.0)');
+        gradient.addColorStop(0, 'rgba(42, 122, 0, 0.15)'); // フォレストグリーンの半透明
+        gradient.addColorStop(1, 'rgba(42, 122, 0, 0.0)');
 
         assetTrendChart = new Chart(ctx, {
             type: 'line',
@@ -559,18 +641,29 @@ function renderAssetChart() {
                 datasets: [{
                     label: '総資産額',
                     data: totals,
-                    borderColor: '#4f46e5',
+                    borderColor: themeColor,
                     borderWidth: 3,
                     backgroundColor: gradient,
                     fill: true,
                     tension: 0.25,
-                    pointBackgroundColor: '#4f46e5',
+                    pointBackgroundColor: themeColor,
                     pointHoverRadius: 6
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                onHover: (event, activeElements) => {
+                    // ホバーされたデータポイントの詳細を下部パネルに反映（指を離しても値が残るように、アクティブな時のみ更新）
+                    if (activeElements && activeElements.length > 0) {
+                        const index = activeElements[0].index;
+                        updateAssetDetailPanel(sortedAssets[index]);
+                    }
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -645,6 +738,16 @@ function renderAssetChart() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                onHover: (event, activeElements) => {
+                    if (activeElements && activeElements.length > 0) {
+                        const index = activeElements[0].index;
+                        updateAssetDetailPanel(sortedAssets[index]);
+                    }
+                },
                 plugins: {
                     legend: {
                         position: 'top',
@@ -686,6 +789,27 @@ document.getElementById('btn-toggle-breakdown').addEventListener('click', () => 
     state.showAssetsBreakdown = true;
     renderAssetChart();
 });
+
+// 期間切り替えボタンのバインド
+document.querySelectorAll('.btn-range').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.btn-range').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.assetRange = btn.getAttribute('data-range');
+        renderAssetChart();
+    });
+});
+
+// 資産詳細表示パネルの更新ヘルパー
+function updateAssetDetailPanel(data) {
+    if (!data) return;
+    document.getElementById('hover-date').textContent = data.date ? data.date.split(" ")[0] : '-';
+    document.getElementById('hover-total').textContent = formatCurrency(data.total || 0);
+    document.getElementById('hover-cash').textContent = formatCurrency(data.cash || 0);
+    document.getElementById('hover-stocks').textContent = formatCurrency(data.stocks || 0);
+    document.getElementById('hover-trusts').textContent = formatCurrency(data.trusts || 0);
+    document.getElementById('hover-points').textContent = formatCurrency(data.points || 0);
+}
 
 // 月次収支推移 (過去6ヶ月)
 function renderCashflowChart() {
