@@ -355,26 +355,32 @@ function loadDemoMode() {
 }
 
 // --- Dashboard Update Date Formatting Helper ---
-function formatAssetUpdateDate(dateVal) {
-    if (!dateVal) return "週次データなし";
-    
-    // dateVal が Date オブジェクトの場合
+function safeParseDate(dateVal) {
+    if (!dateVal) return new Date(0);
     let d = dateVal;
     if (!(d instanceof Date)) {
         d = new Date(dateVal);
     }
+    if (!isNaN(d.getTime())) return d;
     
-    // パースに失敗した場合は、文字列の正規表現/split処理で切り抜きを試みる
-    if (isNaN(d.getTime())) {
-        const parts = String(dateVal).split(" ");
-        const dateParts = parts[0].split("/");
-        if (dateParts.length >= 3) {
-            const year = dateParts[0];
-            const month = parseInt(dateParts[1]);
-            const day = parseInt(dateParts[2]);
-            const timeStr = parts[1] ? " " + parts[1] : "";
-            return `${year}年${month}月${day}日${timeStr}更新`;
-        }
+    // スラッシュ区切りで時刻がある場合など、ブラウザ互換性のためのフォールバック
+    const cleanStr = String(dateVal).replace(/-/g, '/');
+    d = new Date(cleanStr);
+    if (!isNaN(d.getTime())) return d;
+    
+    const parts = String(dateVal).split(" ");
+    if (parts.length > 0) {
+        const dPart = new Date(parts[0].replace(/-/g, '/'));
+        if (!isNaN(dPart.getTime())) return dPart;
+    }
+    return new Date(0);
+}
+
+function formatAssetUpdateDate(dateVal) {
+    if (!dateVal) return "週次データなし";
+    
+    const d = safeParseDate(dateVal);
+    if (isNaN(d.getTime()) || d.getTime() === 0) {
         return String(dateVal);
     }
     
@@ -471,7 +477,7 @@ function renderDashboard() {
 
     if (state.assets.length > 0) {
         // 日付でソートした最新のものを取得
-        const sortedAssets = [...state.assets].sort((a, b) => new Date(a.date.split(" ")[0]) - new Date(b.date.split(" ")[0]));
+        const sortedAssets = [...state.assets].sort((a, b) => safeParseDate(a.date) - safeParseDate(b.date));
         const latest = sortedAssets[sortedAssets.length - 1];
         latestAssetVal = latest.total;
         latestAssetDate = formatAssetUpdateDate(latest.date);
@@ -481,9 +487,7 @@ function renderDashboard() {
         const prevMonthMonth = prevMonthDate.getMonth();
         const prevMonthAssets = sortedAssets.filter(a => {
             if (!a || !a.date) return false;
-            const parts = String(a.date).split(" ");
-            if (parts.length === 0) return false;
-            const d = new Date(parts[0]);
+            const d = safeParseDate(a.date);
             return !isNaN(d.getTime()) && d.getFullYear() === prevMonthYear && d.getMonth() === prevMonthMonth;
         });
 
@@ -611,12 +615,12 @@ function renderAssetChart() {
     const ctx = document.getElementById('asset-trend-chart').getContext('2d');
     
     // 日付昇順でソート
-    let sortedAssets = [...state.assets].sort((a, b) => new Date(a.date.split(" ")[0]) - new Date(b.date.split(" ")[0]));
+    let sortedAssets = [...state.assets].sort((a, b) => safeParseDate(a.date) - safeParseDate(b.date));
     
     // 表示期間でフィルタリング
     if (state.assetRange && state.assetRange !== 'all' && sortedAssets.length > 0) {
         // 最新レコードの日付を基準にする
-        const latestDate = new Date(sortedAssets[sortedAssets.length - 1].date.split(" ")[0]);
+        const latestDate = safeParseDate(sortedAssets[sortedAssets.length - 1].date);
         let cutoffDate = new Date(latestDate);
         
         if (state.assetRange === '1m') {
@@ -629,7 +633,7 @@ function renderAssetChart() {
             cutoffDate.setFullYear(latestDate.getFullYear() - 1);
         }
         
-        sortedAssets = sortedAssets.filter(a => new Date(a.date.split(" ")[0]) >= cutoffDate);
+        sortedAssets = sortedAssets.filter(a => safeParseDate(a.date) >= cutoffDate);
     }
 
     // 詳細リストの初期表示（最新レコードを初期セット）
@@ -645,7 +649,11 @@ function renderAssetChart() {
         document.getElementById('hover-points').textContent = '¥0';
     }
 
-    const labels = sortedAssets.map(a => a.date.split(" ")[0]); // 年月日すべて表示
+    const labels = sortedAssets.map(a => {
+        const d = safeParseDate(a.date);
+        if (isNaN(d.getTime()) || d.getTime() === 0) return String(a.date).split(" ")[0];
+        return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+    }); // 年月日すべて表示
     const themeColor = '#2a7a00'; // フォレストグリーン
 
     if (assetTrendChart) {
