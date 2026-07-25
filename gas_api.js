@@ -133,8 +133,7 @@ function doPost(e) {
       if (!expenseSheet) throw new Error("シート「支出記録」が見つかりません");
       
       const dateStr = postData.date || formatDate(new Date());
-      const d = new Date(dateStr);
-      const yearMonth = `${d.getFullYear()}/${d.getMonth() + 1}`;
+      const yearMonth = ""; // スプレッドシート側で自動入力されるため空欄で送信
       
       const category = postData.category || "その他";
       const amount = Number(postData.amount || 0);
