@@ -13,7 +13,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Custom Style -->
-    <link rel="stylesheet" href="styles.css?v=1.1.0">
+    <link rel="stylesheet" href="styles.css?v=1.2.0">
 </head>
 <body>
     <div class="app-container">
@@ -67,9 +67,14 @@
                         <span id="current-month-display">2026年07月</span>
                         <button class="btn-icon" id="next-month"><i class="fa-solid fa-chevron-right"></i></button>
                     </div>
-                    <button class="btn btn-secondary" id="sync-button">
-                        <i class="fa-solid fa-rotate"></i> <span>同期</span>
-                    </button>
+                    <div class="sync-action-wrapper">
+                        <button class="btn btn-secondary" id="sync-button">
+                            <i class="fa-solid fa-rotate"></i> <span>同期</span>
+                        </button>
+                        <div class="last-sync-time" id="assets-update-date">
+                            <i class="fa-solid fa-clock"></i> <span>未同期</span>
+                        </div>
+                    </div>
                 </div>
             </header>
 
@@ -90,8 +95,8 @@
                             <div class="card-icon-wrapper"><i class="fa-solid fa-vault"></i></div>
                         </div>
                         <div class="card-value" id="total-assets">¥0</div>
-                        <div class="card-trend" id="assets-update-date">
-                            <i class="fa-solid fa-clock"></i> <span>週次データ未ロード</span>
+                        <div class="card-trend" id="assets-trend">
+                            <span>前月比: ¥0</span>
                         </div>
                     </div>
 
@@ -621,6 +626,6 @@
     </nav>
 
     <!-- Script File -->
-    <script src="app.js?v=1.1.0"></script>
+    <script src="app.js?v=1.2.0"></script>
 </body>
 </html>

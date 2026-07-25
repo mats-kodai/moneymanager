@@ -256,6 +256,22 @@ button, input, select, textarea {
     gap: 16px;
 }
 
+.sync-action-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.last-sync-time {
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
 .month-selector {
     display: flex;
     align-items: center;
@@ -1610,6 +1626,11 @@ textarea.form-input {
     .header-actions {
         width: 100%;
         justify-content: space-between;
+        align-items: flex-start;
+    }
+    
+    .sync-action-wrapper {
+        align-items: flex-end;
     }
     
     .form-layout {

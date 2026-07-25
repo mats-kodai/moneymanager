@@ -472,8 +472,9 @@ function renderDashboard() {
 
     // 最新の総資産額の取得 (週次資産記録の最新行)
     let latestAssetVal = 0;
-    let latestAssetDate = "週次データなし";
-    let assetTrendText = "";
+    let latestAssetDate = "未同期";
+    let assetDiff = 0;
+    let hasPrevAsset = false;
 
     if (state.assets.length > 0) {
         // 日付でソートした最新のものを取得
@@ -493,15 +494,36 @@ function renderDashboard() {
 
         if (prevMonthAssets.length > 0) {
             const firstAssetOfPrevMonth = prevMonthAssets[0]; // ソート済みのため最初が一番古い
-            const diff = latestAssetVal - firstAssetOfPrevMonth.total;
-            const diffSign = diff >= 0 ? "+" : "";
-            assetTrendText = ` (前月比: ${diffSign}${formatCurrency(diff)})`;
+            assetDiff = latestAssetVal - firstAssetOfPrevMonth.total;
+            hasPrevAsset = true;
         }
     }
 
     // 2. カードの描画更新
     document.getElementById('total-assets').textContent = formatCurrency(latestAssetVal);
-    document.getElementById('assets-update-date').innerHTML = `<i class="fa-solid fa-clock"></i> <span>${latestAssetDate}${assetTrendText}</span>`;
+    
+    // カード内のトレンド (前月比のみ表示)
+    const assetTrendEl = document.getElementById('assets-trend');
+    if (assetTrendEl) {
+        if (hasPrevAsset) {
+            const diffSign = assetDiff >= 0 ? "+" : "";
+            if (assetDiff >= 0) {
+                assetTrendEl.className = 'card-trend text-success';
+            } else {
+                assetTrendEl.className = 'card-trend text-danger';
+            }
+            assetTrendEl.innerHTML = `<span>前月比: ${diffSign}${formatCurrency(assetDiff)}</span>`;
+        } else {
+            assetTrendEl.className = 'card-trend';
+            assetTrendEl.innerHTML = `<span>前月比較データなし</span>`;
+        }
+    }
+
+    // 同期ボタン下の更新日時表示
+    const updateDateEl = document.getElementById('assets-update-date');
+    if (updateDateEl) {
+        updateDateEl.innerHTML = `<i class="fa-solid fa-clock"></i> <span>${latestAssetDate}</span>`;
+    }
     
     document.getElementById('total-income').textContent = formatCurrency(totalIncome);
     document.getElementById('income-desc').innerHTML = `<span>${incomeTrendText}</span>`;
