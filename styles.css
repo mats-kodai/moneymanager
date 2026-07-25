@@ -601,17 +601,37 @@ button, input, select, textarea {
     border: 1px dashed var(--card-border);
 }
 
-.hover-details-title {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--text-secondary);
+.hover-details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 12px;
-    text-align: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.hover-details-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.hover-date-badge {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: var(--card-bg);
+    padding: 4px 10px;
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--card-border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .details-grid {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 12px;
 }
 

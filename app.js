@@ -862,7 +862,19 @@ document.querySelectorAll('.btn-range').forEach(btn => {
 // 資産詳細表示パネルの更新ヘルパー
 function updateAssetDetailPanel(data) {
     if (!data) return;
-    document.getElementById('hover-date').textContent = data.date ? data.date.split(" ")[0] : '-';
+    
+    // 日付から曜日や不要な文字を取り除き、純粋な年月日(YYYY/MM/DD)を抽出
+    let rawDate = data.date ? String(data.date).split(" ")[0] : '-';
+    const d = safeParseDate(data.date);
+    if (!isNaN(d.getTime()) && d.getTime() !== 0) {
+        rawDate = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+    } else {
+        rawDate = rawDate.replace(/\(.\)/g, '').trim();
+    }
+    
+    const dateEl = document.getElementById('hover-date');
+    if (dateEl) dateEl.textContent = rawDate;
+    
     document.getElementById('hover-total').textContent = formatCurrency(data.total || 0);
     document.getElementById('hover-cash').textContent = formatCurrency(data.cash || 0);
     document.getElementById('hover-stocks').textContent = formatCurrency(data.stocks || 0);
