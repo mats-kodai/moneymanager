@@ -252,7 +252,7 @@ button, input, select, textarea {
 
 .header-actions {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 16px;
 }
 
@@ -260,7 +260,7 @@ button, input, select, textarea {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 4px;
+    gap: 6px;
 }
 
 .last-sync-time {
@@ -279,9 +279,20 @@ button, input, select, textarea {
     border: 1px solid var(--card-border);
     border-radius: var(--border-radius-sm);
     padding: 4px;
+    height: 38px;
+    box-sizing: border-box;
     font-size: 14px;
     font-weight: 600;
     box-shadow: var(--shadow-sm);
+}
+
+#sync-button {
+    height: 38px;
+    padding: 0 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
 }
 
 .month-selector span {
