@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoneyManager - 個人向けスマート家計簿</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <i class="fa-solid fa-wallet brand-icon"></i>
+                <span class="brand-text">MoneyManager</span>
+            </div>
+            
+            <nav class="sidebar-menu">
+                <a href="#dashboard" class="menu-item active" data-tab="dashboard">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>ダッシュボード</span>
+                </a>
+                <a href="#transactions" class="menu-item" data-tab="transactions">
+                    <i class="fa-solid fa-list-ul"></i>
+                    <span>明細・履歴</span>
+                </a>
+                <a href="#add-transaction" class="menu-item" data-tab="add-transaction">
+                    <i class="fa-solid fa-circle-plus"></i>
+                    <span>取引追加</span>
+                </a>
+                <a href="#settings" class="menu-item" data-tab="settings">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>設定</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-status-card">
+                <div class="status-indicator" id="connection-status">
+                    <span class="status-dot warning"></span>
+                    <span class="status-text">デモモード動作中</span>
+                </div>
+                <p class="status-desc" id="status-desc">GASのURLを設定するとスプレッドシートと同期します。</p>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Navbar -->
+            <header class="top-navbar">
+                <div class="page-title-section">
+                    <h1 id="page-title">ダッシュボード</h1>
+                    <p class="subtitle" id="page-subtitle">家計と資産の状況をリアルタイムに把握します。</p>
+                </div>
+                
+                <div class="header-actions">
+                    <div class="month-selector">
+                        <button class="btn-icon" id="prev-month"><i class="fa-solid fa-chevron-left"></i></button>
+                        <span id="current-month-display">2026年07月</span>
+                        <button class="btn-icon" id="next-month"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                    <button class="btn btn-secondary" id="sync-button">
+                        <i class="fa-solid fa-rotate"></i> <span>同期</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Loading overlay -->
+            <div id="loading-overlay" class="loading-overlay hidden">
+                <div class="spinner"></div>
+                <p>データを同期しています...</p>
+            </div>
+
+            <!-- Tab: Dashboard -->
+            <section id="tab-dashboard" class="tab-pane active">
+                <!-- Summary Cards Grid -->
+                <div class="summary-grid">
+                    <!-- Card 1: Total Assets -->
+                    <div class="summary-card asset">
+                        <div class="card-header">
+                            <span class="card-label">現在の総資産</span>
+                            <div class="card-icon-wrapper"><i class="fa-solid fa-vault"></i></div>
+                        </div>
+                        <div class="card-value" id="total-assets">¥0</div>
+                        <div class="card-trend" id="assets-update-date">
+                            <i class="fa-solid fa-clock"></i> <span>週次データ未ロード</span>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Net Income -->
+                    <div class="summary-card income">
+                        <div class="card-header">
+                            <span class="card-label">今月の手取り収入</span>
+                            <div class="card-icon-wrapper"><i class="fa-solid fa-arrow-down-long"></i></div>
+                        </div>
+                        <div class="card-value" id="total-income">¥0</div>
+                        <div class="card-trend" id="income-desc">
+                            <span>給与・譲渡所得等の合計</span>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Expenses (Including Subs) -->
+                    <div class="summary-card expenses">
+                        <div class="card-header">
+                            <span class="card-label">今月の総支出</span>
+                            <div class="card-icon-wrapper"><i class="fa-solid fa-arrow-up-long"></i></div>
+                        </div>
+                        <div class="card-value" id="total-expenses">¥0</div>
+                        <div class="card-trend text-danger" id="expense-desc-card">
+                            <span>変動費 + サブスク月割</span>
+                        </div>
+                    </div>
+
+                    <!-- Card 4: Subscriptions Burden -->
+                    <div class="summary-card subscription">
+                        <div class="card-header">
+                            <span class="card-label">サブスク月額負担</span>
+                            <div class="card-icon-wrapper"><i class="fa-solid fa-repeat"></i></div>
+                        </div>
+                        <div class="card-value" id="total-subs-monthly">¥0</div>
+                        <div class="card-trend" id="total-subs-count">
+                            <span>登録数: 0 件</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Asset History Chart (New Feature) -->
+                <div class="chart-card asset-history-card">
+                    <div class="card-header-flex">
+                        <h3>週次資産推移 (総資産・ポートフォリオ)</h3>
+                        <div class="chart-toggles">
+                            <button class="btn-toggle active" id="btn-toggle-total">総資産のみ</button>
+                            <button class="btn-toggle" id="btn-toggle-breakdown">内訳も表示</button>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper large-chart">
+                        <canvas id="asset-trend-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Monthly Spend & Distribution Charts Section -->
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>月別収支推移</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="monthly-trend-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>今月の支出項目割合</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="category-distribution-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Details -->
+                <div class="dashboard-details-grid">
+                    <!-- Recent Expenses -->
+                    <div class="detail-card recent-expenses">
+                        <div class="detail-header">
+                            <h3>最近の支出</h3>
+                            <a href="#transactions" class="link-more" id="view-all-expenses">すべて見る <i class="fa-solid fa-arrow-right"></i></a>
+                        </div>
+                        <div class="recent-list-wrapper">
+                            <table class="recent-table">
+                                <thead>
+                                    <tr>
+                                        <th>日付</th>
+                                        <th>項目</th>
+                                        <th>備考</th>
+                                        <th class="text-right">金額</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recent-expenses-tbody">
+                                    <!-- JS inserts rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Active Subscriptions -->
+                    <div class="detail-card active-subs">
+                        <div class="detail-header">
+                            <h3>契約中のサブスク</h3>
+                        </div>
+                        <div class="recent-list-wrapper">
+                            <table class="recent-table">
+                                <thead>
+                                    <tr>
+                                        <th>媒体名</th>
+                                        <th>支払回数/年</th>
+                                        <th>年間額</th>
+                                        <th class="text-right">月換算額</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="active-subs-tbody">
+                                    <!-- JS inserts rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab: Transactions (Switchable Tabs for Expense/Income/Subs) -->
+            <section id="tab-transactions" class="tab-pane">
+                <div class="sub-tab-navigation">
+                    <button class="sub-tab-btn active" data-subtab="expense-list">支出明細</button>
+                    <button class="sub-tab-btn" data-subtab="income-list">収入明細</button>
+                    <button class="sub-tab-btn" data-subtab="sub-list">サブスク一覧</button>
+                </div>
+
+                <!-- Sub-tab: Expenses -->
+                <div id="subtab-expense-list" class="sub-tab-pane active">
+                    <div class="filter-bar">
+                        <div class="search-input-wrapper">
+                            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                            <input type="text" id="expense-search" placeholder="備考、項目などで検索...">
+                        </div>
+                        <div class="filter-controls">
+                            <div class="filter-group">
+                                <label for="filter-expense-cat">項目:</label>
+                                <select id="filter-expense-cat" class="form-select">
+                                    <option value="all">すべて</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-secondary btn-small" id="reset-expense-filters">
+                                <i class="fa-solid fa-xmark"></i> クリア
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="transactions-table-card">
+                        <div class="table-wrapper">
+                            <table class="main-table">
+                                <thead>
+                                    <tr>
+                                        <th>日付</th>
+                                        <th>項目</th>
+                                        <th>備考</th>
+                                        <th class="text-right">金額</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="expense-table-tbody">
+                                    <!-- JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="table-footer">
+                            <span id="expense-count">全 0 件の支出</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sub-tab: Incomes -->
+                <div id="subtab-income-list" class="sub-tab-pane">
+                    <div class="transactions-table-card">
+                        <div class="table-wrapper">
+                            <table class="main-table">
+                                <thead>
+                                    <tr>
+                                        <th>年月</th>
+                                        <th>収入区分</th>
+                                        <th>総支給額</th>
+                                        <th>所得税</th>
+                                        <th>住民税</th>
+                                        <th>社会保険料</th>
+                                        <th>その他控除</th>
+                                        <th>控除合計</th>
+                                        <th>交通費</th>
+                                        <th class="text-right">手取り</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="income-table-tbody">
+                                    <!-- JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="table-footer">
+                            <span id="income-count">今月の収入明細: 全 0 件</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sub-tab: Subscriptions -->
+                <div id="subtab-sub-list" class="sub-tab-pane">
+                    <div class="transactions-table-card">
+                        <div class="table-wrapper">
+                            <table class="main-table">
+                                <thead>
+                                    <tr>
+                                        <th>年</th>
+                                        <th>媒体名</th>
+                                        <th>支出金額</th>
+                                        <th>支払回数 / 年</th>
+                                        <th>年間支払額</th>
+                                        <th class="text-right">月当たり支払額</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sub-table-tbody">
+                                    <!-- JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab: Add Transaction -->
+            <section id="tab-add-transaction" class="tab-pane">
+                <div class="form-layout">
+                    <!-- Form Container -->
+                    <div class="form-card">
+                        <div class="form-header-toggle">
+                            <button class="toggle-form-btn active" id="form-select-expense">支出の記録</button>
+                            <button class="toggle-form-btn" id="form-select-income">収入の記録</button>
+                        </div>
+
+                        <!-- 1. Expense Form -->
+                        <form id="expense-form" class="transaction-form">
+                            <h3>支出を記録する</h3>
+                            <p class="form-desc">家計簿の「支出記録」に直接追加されます。</p>
+
+                            <div class="form-group">
+                                <label for="exp-amount" class="required">支出金額 (円)</label>
+                                <div class="amount-input-wrapper">
+                                    <span class="currency-symbol">¥</span>
+                                    <input type="number" id="exp-amount" name="amount" required min="1" placeholder="金額を入力">
+                                </div>
+                            </div>
+
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="exp-date" class="required">日付</label>
+                                    <input type="date" id="exp-date" name="date" required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="exp-category" class="required">項目 (カテゴリ)</label>
+                                    <select id="exp-category" name="category" required class="form-select">
+                                        <option value="" disabled selected>選択してください</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="exp-desc">備考</label>
+                                <input type="text" id="exp-desc" name="description" placeholder="店舗名、用途メモなど">
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-block">
+                                <i class="fa-solid fa-check"></i> 支出を保存
+                            </button>
+                        </form>
+
+                        <!-- 2. Income Form (Hidden by default) -->
+                        <form id="income-form" class="transaction-form hidden">
+                            <h3>収入を記録する</h3>
+                            <p class="form-desc">家計簿の「収入記録」に直接追加されます。各控除額を入力して手取りを自動計算します。</p>
+
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="inc-yearmonth" class="required">対象年月</label>
+                                    <input type="month" id="inc-yearmonth" name="yearMonth" required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="inc-type" class="required">収入区分</label>
+                                    <select id="inc-type" name="incomeType" required class="form-select">
+                                        <option value="給与所得">給与所得</option>
+                                        <option value="配当所得">配当所得</option>
+                                        <option value="譲渡所得">譲渡所得</option>
+                                        <option value="その他">その他</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="inc-gross" class="required">総支給額 (円)</label>
+                                    <input type="number" id="inc-gross" name="grossPay" required min="0" placeholder="基本給＋諸手当" class="form-input">
+                                </div>
+                                <div class="form-group">
+                                    <label for="inc-tax-income">所得税 (円)</label>
+                                    <input type="number" id="inc-tax-income" name="incomeTax" value="0" min="0" class="form-input">
+                                </div>
+                            </div>
+
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="inc-tax-inhabitant">住民税 (円)</label>
+                                    <input type="number" id="inc-tax-inhabitant" name="inhabitantTax" value="0" min="0" class="form-input">
+                                </div>
+                                <div class="form-group">
+                                    <label for="inc-social" class="required">社会保険料 (円)</label>
+                                    <div class="input-with-button">
+                                        <input type="number" id="inc-social" name="socialInsurance" value="0" min="0" required class="form-input">
+                                        <button type="button" class="btn btn-secondary btn-icon-only" id="btn-open-calc" title="電卓を開く">
+                                            <i class="fa-solid fa-calculator"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="inc-other-deduct">その他控除 (円)</label>
+                                    <input type="number" id="inc-other-deduct" name="otherDeductions" value="2260" min="0" class="form-input">
+                                </div>
+                                <div class="form-group">
+                                    <label for="inc-transport">交通費 (円)</label>
+                                    <input type="number" id="inc-transport" name="transportation" value="0" min="0" class="form-input">
+                                </div>
+                            </div>
+
+                            <!-- Auto calculated result preview cards -->
+                            <div class="calculations-preview-card">
+                                <div class="preview-item">
+                                    <span class="preview-label">控除合計</span>
+                                    <span class="preview-value text-danger" id="preview-deduction-total">¥0</span>
+                                </div>
+                                <div class="preview-item">
+                                    <span class="preview-label font-bold">手取り支給額</span>
+                                    <span class="preview-value text-success font-bold" id="preview-takehome-pay">¥0</span>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-block">
+                                <i class="fa-solid fa-check"></i> 収入を保存
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Shortcut Help Info -->
+                    <div class="shortcuts-card">
+                        <h3>家計簿の計算ルール</h3>
+                        <div class="rule-box">
+                            <span class="rule-title">控除合計の計算</span>
+                            <p class="rule-math">所得税 ＋ 住民税 ＋ 社会保険料 ＋ その他控除</p>
+                        </div>
+                        <div class="rule-box">
+                            <span class="rule-title">手取り額の計算</span>
+                            <p class="rule-math">総支給額 － 控除合計 － 交通費</p>
+                        </div>
+                        
+                        <div class="shortcut-tip">
+                            <div class="tip-icon"><i class="fa-solid fa-lightbulb"></i></div>
+                            <div class="tip-text">その他控除はデフォルトで「2,260円」がセットされていますが、必要に応じて変更可能です。</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab: Settings -->
+            <section id="tab-settings" class="tab-pane">
+                <div class="settings-grid">
+                    <!-- GAS Integration -->
+                    <div class="settings-card">
+                        <h3><i class="fa-solid fa-link"></i> Googleスプレッドシート連携</h3>
+                        <p class="settings-desc">デプロイしたGoogle Apps Script (GAS) のWebアプリケーションURLを入力して、スプレッドシートとデータを同期させます。</p>
+                        
+                        <div class="settings-form">
+                            <div class="form-group">
+                                <label for="gas-url">GAS Web App URL</label>
+                                <input type="url" id="gas-url" placeholder="https://script.google.com/macros/s/.../exec" class="form-input">
+                            </div>
+                            
+                            <div class="settings-actions">
+                                <button class="btn btn-primary" id="save-gas-url">接続を保存してテスト</button>
+                                <button class="btn btn-danger hidden" id="disconnect-gas">接続解除</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Category Management -->
+                    <div class="settings-card">
+                        <h3><i class="fa-solid fa-tags"></i> 支出項目カテゴリ管理</h3>
+                        <p class="settings-desc">支出記録で使用する項目カテゴリを編集します。カンマ区切りで入力してください。</p>
+                        
+                        <div class="form-group">
+                            <label for="settings-expense-categories">項目カテゴリ</label>
+                            <textarea id="settings-expense-categories" rows="3" class="form-input"></textarea>
+                        </div>
+                        
+                        <div class="settings-actions">
+                            <button class="btn btn-secondary" id="save-categories">カテゴリを保存</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Social Insurance Calculator Modal -->
+    <div id="calc-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>社会保険料 簡易計算器</h3>
+                <button type="button" class="modal-close-btn" id="btn-close-calc">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-desc">内訳を入力して社会保険料の合計を算出します。</p>
+                
+                <div class="form-group">
+                    <label for="calc-health">健康保険料 (円)</label>
+                    <input type="number" id="calc-health" placeholder="0" class="form-input" min="0">
+                </div>
+                
+                <div class="form-group">
+                    <label for="calc-pension">厚生年金保険料 (円)</label>
+                    <input type="number" id="calc-pension" placeholder="0" class="form-input" min="0">
+                </div>
+                
+                <div class="form-group">
+                    <label for="calc-employment">雇用保険料 (円)</label>
+                    <input type="number" id="calc-employment" placeholder="0" class="form-input" min="0">
+                </div>
+                
+                <div class="form-group">
+                    <label for="calc-care">介護保険料 (円)</label>
+                    <input type="number" id="calc-care" placeholder="0" class="form-input" min="0">
+                </div>
+
+                <div class="calc-sum-card">
+                    <span class="calc-sum-label">合算結果:</span>
+                    <span class="calc-sum-value" id="calc-sum-total">¥0</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="btn-cancel-calc">キャンセル</button>
+                <button type="button" class="btn btn-primary" id="btn-apply-calc">計算結果を挿入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast hidden">
+        <i class="fa-solid fa-circle-info toast-icon"></i>
+        <span class="toast-message">メッセージ</span>
+    </div>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a href="#dashboard" class="bottom-nav-item active" data-tab="dashboard">
+            <i class="fa-solid fa-chart-pie"></i>
+            <span>ダッシュボード</span>
+        </a>
+        <a href="#transactions" class="bottom-nav-item" data-tab="transactions">
+            <i class="fa-solid fa-list-ul"></i>
+            <span>明細</span>
+        </a>
+        <a href="#add-transaction" class="bottom-nav-item" data-tab="add-transaction">
+            <i class="fa-solid fa-circle-plus"></i>
+            <span>追加</span>
+        </a>
+        <a href="#settings" class="bottom-nav-item" data-tab="settings">
+            <i class="fa-solid fa-sliders"></i>
+            <span>設定</span>
+        </a>
+    </nav>
+
+    <!-- Script File -->
+    <script src="app.js"></script>
+</body>
+</html>
