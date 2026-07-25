@@ -355,20 +355,40 @@ function loadDemoMode() {
 }
 
 // --- Dashboard Update Date Formatting Helper ---
-function formatAssetUpdateDate(dateStr) {
-    if (!dateStr) return "週次データなし";
-    const parts = dateStr.split(" ");
-    const dateParts = parts[0].split("/");
-    if (dateParts.length < 3) return dateStr;
+function formatAssetUpdateDate(dateVal) {
+    if (!dateVal) return "週次データなし";
     
-    const year = dateParts[0];
-    const month = parseInt(dateParts[1]);
-    const day = parseInt(dateParts[2]);
-    
-    let timeStr = "";
-    if (parts[1]) {
-        timeStr = " " + parts[1];
+    // dateVal が Date オブジェクトの場合
+    let d = dateVal;
+    if (!(d instanceof Date)) {
+        d = new Date(dateVal);
     }
+    
+    // パースに失敗した場合は、文字列の正規表現/split処理で切り抜きを試みる
+    if (isNaN(d.getTime())) {
+        const parts = String(dateVal).split(" ");
+        const dateParts = parts[0].split("/");
+        if (dateParts.length >= 3) {
+            const year = dateParts[0];
+            const month = parseInt(dateParts[1]);
+            const day = parseInt(dateParts[2]);
+            const timeStr = parts[1] ? " " + parts[1] : "";
+            return `${year}年${month}月${day}日${timeStr}更新`;
+        }
+        return String(dateVal);
+    }
+    
+    const year = d.getFullYear();
+    const month = d.getMonth() + 1;
+    const day = d.getDate();
+    
+    const hours = d.getHours();
+    const minutes = d.getMinutes();
+    
+    // スプレッドシートの日付オブジェクト等で時分秒が指定されているか確認
+    const hasTime = String(dateVal).includes(":") || (hours !== 0 || minutes !== 0);
+    const timeStr = hasTime ? ` ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}` : "";
+    
     return `${year}年${month}月${day}日${timeStr}更新`;
 }
 
@@ -485,7 +505,16 @@ function renderDashboard() {
     // 表示上は今月全体の総支出を表示しつつ、トレンドに前月同日比を表示する
     const allExpensesTotal = currentExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0) + totalSubsMonthly;
     document.getElementById('total-expenses').textContent = formatCurrency(allExpensesTotal);
-    document.getElementById('expense-desc-card').innerHTML = `<span>変動費: ${formatCurrency(allExpensesTotal - totalSubsMonthly)} ＋ サブスク (${expenseTrendText})</span>`;
+    
+    const expenseTrendEl = document.getElementById('expense-desc-card');
+    if (expenseTrendEl) {
+        if (expenseDiff >= 0) {
+            expenseTrendEl.className = 'card-trend text-danger'; // 支出増は赤
+        } else {
+            expenseTrendEl.className = 'card-trend text-success'; // 支出減は緑
+        }
+        expenseTrendEl.innerHTML = `<span>${expenseTrendText}</span>`;
+    }
     
     // 今月の収支の集計と描画
     // 今月の収支 ＝ 今月の手取り収入 - 今月の総支出（1日〜基準日までの変動費 + サブスク）
