@@ -1,6 +1,10 @@
 /* ==========================================================================
-   MoneyManager - Frontend Logic (Light Mode & 4 Sheets Edition)
+   MoneyManager - Frontend Logic (Budget Dashboard Edition)
    ========================================================================== */
+
+const initialMonth = new Date();
+initialMonth.setDate(1);
+initialMonth.setHours(0, 0, 0, 0);
 
 // --- App State ---
 const state = {
@@ -8,79 +12,67 @@ const state = {
     assets: [],        // 週次資産記録
     incomes: [],       // 収入記録
     expenses: [],      // 支出記録
-    subscriptions: [],  // サブスク管理
+    subscriptions: [], // サブスク管理
+    annualBudgets: [], // 年度予算
+    itemBudgets: [],   // 費目別予算
+    assetTargets: [],  // 暦年末資産目標
     expenseCategories: ["個人_食費", "交友_食費", "交通費", "家賃", "日用品・被服費", "医療費", "娯楽費", "教育費・研鑽費", "交際費", "旅費", "通信費", "雑費", "サブスク"],
     incomeTypes: ["給与所得", "配当所得", "譲渡所得", "その他"],
-    currentMonth: new Date(2026, 6, 1), // デフォルト表示をデータが豊富な 2026年7月 に設定
+    currentMonth: initialMonth,
     showAssetsBreakdown: false, // 資産の内訳表示フラグ
     assetRange: 'all',          // 資産グラフの表示期間 ('all', '1m', '3m', '6m', '1y')
     isDemoMode: true
 };
 
-// --- Mock Data (Based on User's Spreadsheet Images) ---
+// --- Generic demo data (actual spreadsheet values are never bundled in GitHub) ---
 const MOCK_ASSETS = [
-    { date: "2026/04/25", total: 1690908, cash: 692152, stocks: 248840, trusts: 733501, points: 16415 },
-    { date: "2026/05/02", total: 1469479, cash: 473792, stocks: 237200, trusts: 741982, points: 16505 },
-    { date: "2026/05/09", total: 1479421, cash: 473624, stocks: 257600, trusts: 731692, points: 16505 },
-    { date: "2026/05/16", total: 1851930, cash: 810037, stocks: 243120, trusts: 780841, points: 17932 },
-    { date: "2026/05/23", total: 1817687, cash: 754057, stocks: 258720, trusts: 786975, points: 17935 },
-    { date: "2026/05/30", total: 1611530, cash: 536293, stocks: 258720, trusts: 786975, points: 29542 },
-    { date: "2026/06/06", total: 1610037, cash: 531007, stocks: 243200, trusts: 811129, points: 24701 },
-    { date: "2026/06/13 8:35", total: 1584246, cash: 535039, stocks: 207920, trusts: 814861, points: 26426 },
-    { date: "2026/06/20 8:43", total: 2001568, cash: 892352, stocks: 236520, trusts: 846269, points: 26427 },
-    { date: "2026/06/27 8:52", total: 1914537, cash: 833201, stocks: 220520, trusts: 836333, points: 24483 },
-    { date: "2026/07/04 8:44", total: 1885557, cash: 808705, stocks: 200440, trusts: 851638, points: 24774 },
-    { date: "2026/07/11 8:37", total: 1903480, cash: 802551, stocks: 198600, trusts: 876846, points: 25483 },
-    { date: "2026/07/18 8:28", total: 1613562, cash: 0, stocks: 199840, trusts: 879648, points: 26328 }
+    { date: "2026/06/27", total: 1210000, cash: 500000, stocks: 180000, trusts: 510000, points: 20000 },
+    { date: "2026/07/25", total: 1280000, cash: 530000, stocks: 190000, trusts: 540000, points: 20000 },
+    { date: "2026/08/08", total: 1310000, cash: 545000, stocks: 195000, trusts: 550000, points: 20000 },
+    { date: "2026/08/22", total: 1350000, cash: 560000, stocks: 200000, trusts: 570000, points: 20000 }
 ];
 
 const MOCK_INCOMES = [
-    { yearMonth: "2026年01月", incomeType: "給与所得", grossPay: 134554, incomeTax: 0, inhabitantTax: 0, socialInsurance: 0, otherDeductions: 0, deductionTotal: 0, transportation: 2804, takeHomePay: 131750 },
-    { yearMonth: "2026-02", incomeType: "給与所得", grossPay: 125364, incomeTax: 0, inhabitantTax: 0, socialInsurance: 0, otherDeductions: 0, deductionTotal: 0, transportation: 4614, takeHomePay: 120750 },
-    { yearMonth: "2026-03", incomeType: "給与所得", grossPay: 139435, incomeTax: 0, inhabitantTax: 0, socialInsurance: 0, otherDeductions: 0, deductionTotal: 0, transportation: 1810, takeHomePay: 137625 },
-    { yearMonth: "2026年03月", incomeType: "譲渡所得", grossPay: 15600, incomeTax: 0, inhabitantTax: 0, socialInsurance: 0, otherDeductions: 0, deductionTotal: 0, transportation: 0, takeHomePay: 15600 },
-    { yearMonth: "2026年04月", incomeType: "給与所得", grossPay: 103245, incomeTax: 0, inhabitantTax: 0, socialInsurance: 0, otherDeductions: 0, deductionTotal: 0, transportation: 3620, takeHomePay: 99625 },
-    { yearMonth: "2026年04月", incomeType: "給与所得", grossPay: 300000, incomeTax: 7820, inhabitantTax: 0, socialInsurance: 1500, otherDeductions: 2260, deductionTotal: 11580, transportation: 0, takeHomePay: 288420 },
-    { yearMonth: "2026年05月", incomeType: "給与所得", grossPay: 303690, incomeTax: 6640, inhabitantTax: 0, socialInsurance: 38463, otherDeductions: 2260, deductionTotal: 47363, transportation: 0, takeHomePay: 256327 },
-    { yearMonth: "2026年06月", incomeType: "給与所得", grossPay: 325036, incomeTax: 7390, inhabitantTax: 0, socialInsurance: 38786, otherDeductions: 2260, deductionTotal: 48436, transportation: 0, takeHomePay: 276600 },
-    { yearMonth: "2026年06月", incomeType: "給与所得", grossPay: 315000, incomeTax: 16824, inhabitantTax: 0, socialInsurance: 40366, otherDeductions: 0, deductionTotal: 57190, transportation: 0, takeHomePay: 257810 },
-    { yearMonth: "2026年07月", incomeType: "給与所得", grossPay: 360023, incomeTax: 9290, inhabitantTax: 0, socialInsurance: 38779, otherDeductions: 2250, deductionTotal: 50319, transportation: 0, takeHomePay: 309704 }
+    { yearMonth: "2026年06月", incomeType: "給与所得", grossPay: 300000, incomeTax: 7000, inhabitantTax: 0, socialInsurance: 40000, otherDeductions: 3000, deductionTotal: 50000, transportation: 0, takeHomePay: 250000 },
+    { yearMonth: "2026年07月", incomeType: "給与所得", grossPay: 310000, incomeTax: 8000, inhabitantTax: 0, socialInsurance: 41000, otherDeductions: 3000, deductionTotal: 52000, transportation: 0, takeHomePay: 258000 },
+    { yearMonth: "2026年08月", incomeType: "給与所得", grossPay: 310000, incomeTax: 8000, inhabitantTax: 0, socialInsurance: 41000, otherDeductions: 3000, deductionTotal: 52000, transportation: 0, takeHomePay: 258000 }
 ];
 
 const MOCK_EXPENSES = [
-    { yearMonth: "2026/1", date: "2026/01/30", category: "旅費", amount: 13750, description: "旅行交通費" },
-    { yearMonth: "2026/1", date: "2026/01/02", category: "娯楽費", amount: 100, description: "ゲームアプリ" },
-    { yearMonth: "2026/1", date: "2026/01/02", category: "雑費", amount: 230, description: "コピー代" },
-    { yearMonth: "2026/1", date: "2026/01/27", category: "旅費", amount: 8850, description: "新幹線予約" },
-    { yearMonth: "2026/1", date: "2026/01/03", category: "娯楽費", amount: 440, description: "映画レンタル" },
-    { yearMonth: "2026/1", date: "2026/01/05", category: "個人_食費", amount: 100, description: "自動販売機飲料" },
-    { yearMonth: "2026/1", date: "2026/01/09", category: "交友_食費", amount: 4000, description: "居酒屋割り勘" },
-    { yearMonth: "2026/1", date: "2026/01/08", category: "娯楽費", amount: 1500, description: "カラオケ" },
-    { yearMonth: "2026/1", date: "2026/01/08", category: "交友_食費", amount: 2400, description: "カフェ代" },
-    { yearMonth: "2026/1", date: "2026/01/09", category: "交通費", amount: 1598, description: "電車移動" },
-    { yearMonth: "2026/1", date: "2026/01/08", category: "交通費", amount: 1190, description: "バス・電車" },
-    { yearMonth: "2026/10", date: "2026/10/28", category: "娯楽費", amount: 17710, description: "遊園地チケット" },
-    { yearMonth: "2026/12", date: "2026/12/17", category: "娯楽費", amount: 10890, description: "忘年会ゲーム" },
-    { yearMonth: "2026/2", date: "2026/02/25", category: "旅費", amount: 32397, description: "ホテル宿泊" },
-    { yearMonth: "2026/1", date: "2026/01/07", category: "交通費", amount: 406, description: "地下鉄" },
-    { yearMonth: "2026/1", date: "2026/01/06", category: "交通費", amount: 406, description: "地下鉄" },
-    { yearMonth: "2026/1", date: "2026/01/24", category: "日用品・被服費", amount: 2175, description: "ドラッグストア" },
-    { yearMonth: "2026/1", date: "2026/01/24", category: "日用品・被服費", amount: 1400, description: "冬物インナー" },
-    { yearMonth: "2026/1", date: "2026/01/25", category: "個人_食費", amount: 1615, description: "自炊食材" },
-    // 2026年7月のデモデータ（現実に即したもの）
-    { yearMonth: "2026/7", date: "2026/07/02", category: "個人_食費", amount: 890, description: "ランチ" },
-    { yearMonth: "2026/7", date: "2026/07/05", category: "日用品・被服費", amount: 3200, description: "日用消耗品" },
-    { yearMonth: "2026/7", date: "2026/07/10", category: "娯楽費", amount: 12000, description: "ライブチケット" },
-    { yearMonth: "2026/7", date: "2026/07/12", category: "交友_食費", amount: 5500, description: "友人とのディナー" },
-    { yearMonth: "2026/7", date: "2026/07/15", category: "交通費", amount: 2400, description: "Suicaチャージ" },
-    { yearMonth: "2026/7", date: "2026/07/19", category: "個人_食費", amount: 4120, description: "週末買い出し" }
+    { yearMonth: "2026/7", date: "2026/07/08", category: "個人_食費", amount: 6800, description: "食材" },
+    { yearMonth: "2026/7", date: "2026/07/18", category: "交友_食費", amount: 9000, description: "会食" },
+    { yearMonth: "2026/7", date: "2026/07/25", category: "日用品・被服費", amount: 7200, description: "日用品" },
+    { yearMonth: "2026/8", date: "2026/08/03", category: "家賃", amount: 14000, description: "住居費" },
+    { yearMonth: "2026/8", date: "2026/08/06", category: "個人_食費", amount: 8200, description: "食材" },
+    { yearMonth: "2026/8", date: "2026/08/09", category: "交通費", amount: 3600, description: "交通" },
+    { yearMonth: "2026/8", date: "2026/08/14", category: "娯楽費", amount: 12000, description: "イベント" },
+    { yearMonth: "2026/8", date: "2026/08/18", category: "交友_食費", amount: 7800, description: "会食" },
+    { yearMonth: "2026/8", date: "2026/08/21", category: "日用品・被服費", amount: 4300, description: "日用品" }
 ];
 
 const MOCK_SUBSCRIPTIONS = [
-    { year: 2026, name: "Google One", amount: 4400, paymentCount: 1, annualAmount: 4400, monthlyAmount: 367 },
-    { year: 2026, name: "Netflix", amount: 700, paymentCount: 12, annualAmount: 8400, monthlyAmount: 700 },
-    { year: 2026, name: "AmazonPrime", amount: 2950, paymentCount: 1, annualAmount: 2950, monthlyAmount: 246 },
-    { year: 2026, name: "Spotify", amount: 590, paymentCount: 12, annualAmount: 7080, monthlyAmount: 590 }
+    { year: 2026, name: "クラウドストレージ", amount: 600, paymentCount: 12, annualAmount: 7200, monthlyAmount: 600 },
+    { year: 2026, name: "動画配信", amount: 1000, paymentCount: 12, annualAmount: 12000, monthlyAmount: 1000 }
+];
+
+const MOCK_ANNUAL_BUDGETS = [
+    { fiscalYear: "FY2027", takeHomePlan: 4900000, recurringMonthly: 175000, recurringAnnual: 2100000, specialAnnual: 800000, totalBudget: 2900000, assetIncreaseTarget: 2000000, yearEndPlan: 4395947, minimumAssetTarget: 4296960, buffer: 98987 },
+    { fiscalYear: "FY2028", takeHomePlan: 5000000, recurringMonthly: 180000, recurringAnnual: 2160000, specialAnnual: 800000, totalBudget: 2960000, assetIncreaseTarget: 2040000, yearEndPlan: 6435947, minimumAssetTarget: 6197974, buffer: 237973 },
+    { fiscalYear: "FY2029", takeHomePlan: 5100000, recurringMonthly: 185000, recurringAnnual: 2220000, specialAnnual: 800000, totalBudget: 3020000, assetIncreaseTarget: 2080000, yearEndPlan: 8515947, minimumAssetTarget: 8098987, buffer: 416960 },
+    { fiscalYear: "FY2030", takeHomePlan: 5200000, recurringMonthly: 190000, recurringAnnual: 2280000, specialAnnual: 800000, totalBudget: 3080000, assetIncreaseTarget: 2120000, yearEndPlan: 10635947, minimumAssetTarget: 10000000, buffer: 635947 }
+];
+
+const MOCK_ITEM_BUDGETS = [
+    { fiscalYear: "FY2027", budgetType: "特別", item: "旅行", unit: "年", budgetAmount: 500000, expenseCategory: "旅費", minimumAmount: 0 },
+    { fiscalYear: "FY2027", budgetType: "特別", item: "大型購入・引越し", unit: "年", budgetAmount: 300000, expenseCategory: "*", minimumAmount: 100000 }
+];
+
+const MOCK_ASSET_TARGETS = [
+    { calendarYear: 2026, targetAmount: 2395947, targetType: "基準目標", note: "試験運用" },
+    { calendarYear: 2027, targetAmount: 4296960, targetType: "最低目標", note: "" },
+    { calendarYear: 2028, targetAmount: 6197974, targetType: "最低目標", note: "" },
+    { calendarYear: 2029, targetAmount: 8098987, targetType: "最低目標", note: "" },
+    { calendarYear: 2030, targetAmount: 10000000, targetType: "最終目標", note: "" }
 ];
 
 // --- Chart Instances ---
@@ -107,8 +99,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // --- Category Init ---
 function initCategories() {
-    state.expenseCategories = ["個人_食費", "交友_食費", "交通費", "家賃", "日用品・被服費", "医療費", "娯楽費", "教育費・研鑽費", "交際費", "旅費", "通信費", "雑費", "サブスク"];
-    localStorage.setItem('kakeibo_expense_categories', JSON.stringify(state.expenseCategories));
+    const savedCategories = localStorage.getItem('kakeibo_expense_categories');
+    if (!savedCategories) return;
+    try {
+        const parsed = JSON.parse(savedCategories);
+        if (Array.isArray(parsed) && parsed.length > 0) state.expenseCategories = parsed;
+    } catch (_error) {
+        localStorage.removeItem('kakeibo_expense_categories');
+    }
 }
 
 // --- Navigation ---
@@ -290,9 +288,19 @@ function updateConnectionStatusUI() {
     } else {
         dot.className = 'status-dot success';
         text.textContent = 'スプレッドシート同期中';
-        desc.textContent = '4つのシートから正常に自動取得しています。';
+        desc.textContent = '家計・予算・資産目標の7シートを同期しています。';
         disconnectBtn.classList.remove('hidden');
     }
+}
+
+function applyApiData(data) {
+    state.assets = data.assets || [];
+    state.incomes = data.incomes || [];
+    state.expenses = data.expenses || [];
+    state.subscriptions = data.subscriptions || [];
+    state.annualBudgets = data.annualBudgets || [];
+    state.itemBudgets = data.itemBudgets || [];
+    state.assetTargets = data.assetTargets || [];
 }
 
 async function syncWithGas() {
@@ -307,10 +315,7 @@ async function syncWithGas() {
         const data = await response.json();
         
         if (data.status === 'success') {
-            state.assets = data.assets || [];
-            state.incomes = data.incomes || [];
-            state.expenses = data.expenses || [];
-            state.subscriptions = data.subscriptions || [];
+            applyApiData(data);
 
             state.isDemoMode = false;
             updateConnectionStatusUI();
@@ -332,24 +337,16 @@ function loadDemoMode() {
     state.isDemoMode = true;
     updateConnectionStatusUI();
 
-    // デモデータの取得
-    const localAssets = localStorage.getItem('kakeibo_demo_assets');
-    const localIncomes = localStorage.getItem('kakeibo_demo_incomes');
-    const localExpenses = localStorage.getItem('kakeibo_demo_expenses');
-    const localSubs = localStorage.getItem('kakeibo_demo_subs');
-
-    state.assets = localAssets ? JSON.parse(localAssets) : MOCK_ASSETS;
+    // v2キーに分離し、旧デモデータや実データ風サンプルを公開画面へ持ち越さない
+    const localExpenses = localStorage.getItem('kakeibo_demo_expenses_v2');
+    const localIncomes = localStorage.getItem('kakeibo_demo_incomes_v2');
+    state.assets = MOCK_ASSETS;
     state.incomes = localIncomes ? JSON.parse(localIncomes) : MOCK_INCOMES;
     state.expenses = localExpenses ? JSON.parse(localExpenses) : MOCK_EXPENSES;
-    state.subscriptions = localSubs ? JSON.parse(localSubs) : MOCK_SUBSCRIPTIONS;
-
-    // 初回保存
-    if (!localAssets) {
-        localStorage.setItem('kakeibo_demo_assets', JSON.stringify(state.assets));
-        localStorage.setItem('kakeibo_demo_incomes', JSON.stringify(state.incomes));
-        localStorage.setItem('kakeibo_demo_expenses', JSON.stringify(state.expenses));
-        localStorage.setItem('kakeibo_demo_subs', JSON.stringify(state.subscriptions));
-    }
+    state.subscriptions = MOCK_SUBSCRIPTIONS;
+    state.annualBudgets = MOCK_ANNUAL_BUDGETS;
+    state.itemBudgets = MOCK_ITEM_BUDGETS;
+    state.assetTargets = MOCK_ASSET_TARGETS;
 
     renderDashboard();
 }
@@ -398,190 +395,184 @@ function formatAssetUpdateDate(dateVal) {
     return `${year}年${month}月${day}日${timeStr}更新`;
 }
 
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+    }[char]));
+}
+
+function getFiscalYear(date) {
+    return date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+}
+
+function getLatestAssetForMonth(monthDate) {
+    const monthlyAssets = state.assets
+        .filter(asset => {
+            const date = safeParseDate(asset.date);
+            return date.getTime() !== 0 && date.getFullYear() === monthDate.getFullYear() && date.getMonth() === monthDate.getMonth();
+        })
+        .sort((a, b) => safeParseDate(a.date) - safeParseDate(b.date));
+    return monthlyAssets.length > 0 ? monthlyAssets[monthlyAssets.length - 1] : null;
+}
+
+function isSpecialExpense(expense, fiscalYearLabel) {
+    const rules = state.itemBudgets.filter(item => item.fiscalYear === fiscalYearLabel && item.budgetType === '特別');
+    if (rules.length === 0) {
+        return expense.category === '旅費' || Number(expense.amount || 0) >= 100000;
+    }
+    return rules.some(rule => {
+        const categoryMatches = rule.expenseCategory === '*' || rule.expenseCategory === expense.category;
+        return categoryMatches && Number(expense.amount || 0) >= Number(rule.minimumAmount || 0);
+    });
+}
+
+function setProgress(id, numerator, denominator, disabled = false) {
+    const bar = document.getElementById(id);
+    const track = bar.closest('.progress-track');
+    const percentage = disabled || denominator <= 0 ? 0 : Math.max(0, Math.min(100, numerator / denominator * 100));
+    bar.style.width = `${percentage}%`;
+    track.setAttribute('aria-valuenow', String(Math.round(percentage)));
+    track.classList.toggle('is-disabled', disabled);
+}
+
+function renderBudgetProgress(selectedAsset, currentExpenses, totalSubsMonthly) {
+    const selectedMonth = state.currentMonth;
+    const fiscalYear = getFiscalYear(selectedMonth);
+    const fiscalYearLabel = `FY${fiscalYear}`;
+    const annualBudget = state.annualBudgets.find(budget => budget.fiscalYear === fiscalYearLabel);
+    const assetTarget = state.assetTargets.find(target => Number(target.calendarYear) === selectedMonth.getFullYear());
+    const recurringActual = currentExpenses
+        .filter(expense => !isSpecialExpense(expense, fiscalYearLabel))
+        .reduce((sum, expense) => sum + Number(expense.amount || 0), 0) + totalSubsMonthly;
+
+    document.getElementById('budget-period-note').textContent = `${selectedMonth.getFullYear()}年${selectedMonth.getMonth() + 1}月時点 / ${fiscalYearLabel}`;
+    document.getElementById('monthly-budget-label').textContent = `${fiscalYearLabel} 月間経常支出`;
+    document.getElementById('annual-budget-label').textContent = `${fiscalYearLabel} 年度総支出`;
+
+    if (annualBudget) {
+        const monthlyRemaining = Number(annualBudget.recurringMonthly || 0) - recurringActual;
+        document.getElementById('monthly-budget-status').textContent = `${formatCurrency(recurringActual)} / ${formatCurrency(annualBudget.recurringMonthly)}`;
+        document.getElementById('monthly-budget-detail').textContent = monthlyRemaining >= 0
+            ? `残り ${formatCurrency(monthlyRemaining)}`
+            : `${formatCurrency(Math.abs(monthlyRemaining))} 超過`;
+        setProgress('monthly-budget-progress', recurringActual, annualBudget.recurringMonthly);
+
+        const fiscalStart = new Date(fiscalYear, 3, 1);
+        const selectedMonthEnd = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0, 23, 59, 59, 999);
+        const today = new Date();
+        const effectiveEnd = selectedMonthEnd > today ? today : selectedMonthEnd;
+        const fiscalExpenses = state.expenses.filter(expense => {
+            const date = safeParseDate(expense.date);
+            return date >= fiscalStart && date <= effectiveEnd;
+        });
+        const elapsedMonths = effectiveEnd < fiscalStart ? 0
+            : (effectiveEnd.getFullYear() - fiscalStart.getFullYear()) * 12 + effectiveEnd.getMonth() - fiscalStart.getMonth() + 1;
+        const annualActual = fiscalExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) + totalSubsMonthly * elapsedMonths;
+        const specialActual = fiscalExpenses
+            .filter(expense => isSpecialExpense(expense, fiscalYearLabel))
+            .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+        const annualRemaining = Number(annualBudget.totalBudget || 0) - annualActual;
+        document.getElementById('annual-budget-status').textContent = `${formatCurrency(annualActual)} / ${formatCurrency(annualBudget.totalBudget)}`;
+        const annualGapText = annualRemaining >= 0
+            ? `残り ${formatCurrency(annualRemaining)}`
+            : `${formatCurrency(Math.abs(annualRemaining))} 超過`;
+        document.getElementById('annual-budget-detail').textContent = `${annualGapText} ・ 特別支出 ${formatCurrency(specialActual)} / ${formatCurrency(annualBudget.specialAnnual)} ・ 資産増加目標 ${formatCurrency(annualBudget.assetIncreaseTarget)}`;
+        setProgress('annual-budget-progress', annualActual, annualBudget.totalBudget);
+    } else {
+        document.getElementById('monthly-budget-status').textContent = `${fiscalYearLabel} 予算未設定`;
+        document.getElementById('monthly-budget-detail').textContent = '試験運用中。年度予算を追加すると自動集計します。';
+        document.getElementById('annual-budget-status').textContent = `${fiscalYearLabel} 予算未設定`;
+        document.getElementById('annual-budget-detail').textContent = 'スプレッドシート「年度予算」に1行追加してください。';
+        setProgress('monthly-budget-progress', 0, 0, true);
+        setProgress('annual-budget-progress', 0, 0, true);
+    }
+
+    document.getElementById('asset-target-label').textContent = `${selectedMonth.getFullYear()}年末 金融資産目標`;
+    if (assetTarget && selectedAsset) {
+        const gap = Number(assetTarget.targetAmount || 0) - Number(selectedAsset.total || 0);
+        document.getElementById('asset-target-status').textContent = `${formatCurrency(selectedAsset.total)} / ${formatCurrency(assetTarget.targetAmount)}`;
+        document.getElementById('asset-target-detail').textContent = gap > 0
+            ? `目標まで ${formatCurrency(gap)}`
+            : `目標を ${formatCurrency(Math.abs(gap))} 上回っています`;
+        setProgress('asset-target-progress', selectedAsset.total, assetTarget.targetAmount);
+    } else if (assetTarget) {
+        document.getElementById('asset-target-status').textContent = `目標 ${formatCurrency(assetTarget.targetAmount)}`;
+        document.getElementById('asset-target-detail').textContent = '選択月の資産記録がありません。';
+        setProgress('asset-target-progress', 0, assetTarget.targetAmount);
+    } else {
+        document.getElementById('asset-target-status').textContent = '目標未設定';
+        document.getElementById('asset-target-detail').textContent = 'スプレッドシート「資産目標」に追加してください。';
+        setProgress('asset-target-progress', 0, 0, true);
+    }
+}
+
 // --- Dashboard Render Logic ---
 function renderDashboard() {
-    // 1. 各集計値の計算
-    // サブスク月額合計の計算
-    let totalSubsMonthly = 0;
-    state.subscriptions.forEach(sub => {
-        totalSubsMonthly += sub.monthlyAmount || 0;
-    });
-
-    // 基準日（Day）の決定
+    const totalSubsMonthly = state.subscriptions.reduce((sum, sub) => sum + Number(sub.monthlyAmount || 0), 0);
     const today = new Date();
-    let targetDay = 31; // デフォルトは末日（安全のため大きい数値）
     const isCurrentMonth = today.getFullYear() === state.currentMonth.getFullYear() && today.getMonth() === state.currentMonth.getMonth();
-
-    if (isCurrentMonth) {
-        targetDay = today.getDate();
-    } else if (state.currentMonth > today) {
-        targetDay = 1; // 未来の月の場合は1日
-    } else {
-        // 過去の月の場合は、その月の末日を取得
-        targetDay = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() + 1, 0).getDate();
-    }
-
-    // 前月の取得
+    const targetDay = isCurrentMonth ? today.getDate() : new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() + 1, 0).getDate();
     const prevMonthDate = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() - 1, 1);
-
-    // 今月の手取り収入の集計
     const currentIncomes = filterIncomesByMonth(state.incomes, state.currentMonth);
-    let totalIncome = 0;
-    currentIncomes.forEach(inc => {
-        totalIncome += inc.takeHomePay || 0;
-    });
-
-    // 前月の手取り収入の集計
     const prevIncomes = filterIncomesByMonth(state.incomes, prevMonthDate);
-    let prevTotalIncome = 0;
-    prevIncomes.forEach(inc => {
-        prevTotalIncome += inc.takeHomePay || 0;
-    });
-
-    // 収入の前月比
-    const incomeDiff = totalIncome - prevTotalIncome;
-    const incomeDiffSign = incomeDiff >= 0 ? "+" : "";
-    const incomeTrendText = `前月比: ${incomeDiffSign}${formatCurrency(incomeDiff)}`;
-
-    // 今月の支出の集計 (1日〜基準日までの変動費)
+    const totalIncome = currentIncomes.reduce((sum, income) => sum + Number(income.takeHomePay || 0), 0);
+    const prevTotalIncome = prevIncomes.reduce((sum, income) => sum + Number(income.takeHomePay || 0), 0);
     const currentExpenses = filterExpensesByMonth(state.expenses, state.currentMonth);
-    const currentExpensesToTargetDay = currentExpenses.filter(exp => {
-        const expDate = new Date(exp.date);
-        return !isNaN(expDate.getTime()) && expDate.getDate() <= targetDay;
-    });
-    let currentExpensesTotal = currentExpensesToTargetDay.reduce((sum, exp) => sum + (exp.amount || 0), 0);
-    
-    // 今月の総支出（1日〜基準日までの変動費 + サブスク）
-    const totalExpenses = currentExpensesTotal + totalSubsMonthly;
-
-    // 前月の同日時点の支出集計
     const prevExpenses = filterExpensesByMonth(state.expenses, prevMonthDate);
-    const prevExpensesToTargetDay = prevExpenses.filter(exp => {
-        const expDate = new Date(exp.date);
-        return !isNaN(expDate.getTime()) && expDate.getDate() <= targetDay;
-    });
-    let prevExpensesTotal = prevExpensesToTargetDay.reduce((sum, exp) => sum + (exp.amount || 0), 0);
-    const prevTotalExpenses = prevExpensesTotal + totalSubsMonthly;
+    const currentExpensesToDay = currentExpenses.filter(expense => safeParseDate(expense.date).getDate() <= targetDay);
+    const prevExpensesToDay = prevExpenses.filter(expense => safeParseDate(expense.date).getDate() <= targetDay);
+    const totalExpenses = currentExpensesToDay.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) + totalSubsMonthly;
+    const prevTotalExpenses = prevExpensesToDay.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) + totalSubsMonthly;
+    const allExpensesTotal = currentExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) + totalSubsMonthly;
 
-    // 支出の前月同日比
-    const expenseDiff = totalExpenses - prevTotalExpenses;
-    const expenseDiffSign = expenseDiff >= 0 ? "+" : "";
-    const expenseTrendText = isCurrentMonth 
-        ? `前月同日比: ${expenseDiffSign}${formatCurrency(expenseDiff)}`
-        : `前月比: ${expenseDiffSign}${formatCurrency(expenseDiff)}`;
-
-    // 最新の総資産額の取得 (週次資産記録の最新行)
-    let latestAssetVal = 0;
-    let latestAssetDate = "未同期";
-    let assetDiff = 0;
-    let hasPrevAsset = false;
-
-    if (state.assets.length > 0) {
-        // 日付でソートした最新のものを取得
-        const sortedAssets = [...state.assets].sort((a, b) => safeParseDate(a.date) - safeParseDate(b.date));
-        const latest = sortedAssets[sortedAssets.length - 1];
-        latestAssetVal = latest.total;
-        latestAssetDate = formatAssetUpdateDate(latest.date);
-
-        // 前月の一番若い（最も古い日付の）レコードを探す
-        const prevMonthYear = prevMonthDate.getFullYear();
-        const prevMonthMonth = prevMonthDate.getMonth();
-        const prevMonthAssets = sortedAssets.filter(a => {
-            if (!a || !a.date) return false;
-            const d = safeParseDate(a.date);
-            return !isNaN(d.getTime()) && d.getFullYear() === prevMonthYear && d.getMonth() === prevMonthMonth;
-        });
-
-        if (prevMonthAssets.length > 0) {
-            const firstAssetOfPrevMonth = prevMonthAssets[0]; // ソート済みのため最初が一番古い
-            assetDiff = latestAssetVal - firstAssetOfPrevMonth.total;
-            hasPrevAsset = true;
-        }
-    }
-
-    // 2. カードの描画更新
-    document.getElementById('total-assets').textContent = formatCurrency(latestAssetVal);
-    
-    // カード内のトレンド (前月比のみ表示)
+    const selectedAsset = getLatestAssetForMonth(state.currentMonth);
+    const previousAsset = getLatestAssetForMonth(prevMonthDate);
     const assetTrendEl = document.getElementById('assets-trend');
-    if (assetTrendEl) {
-        if (hasPrevAsset) {
-            const diffSign = assetDiff >= 0 ? "+" : "";
-            if (assetDiff >= 0) {
-                assetTrendEl.className = 'card-trend text-success';
-            } else {
-                assetTrendEl.className = 'card-trend text-danger';
-            }
-            assetTrendEl.innerHTML = `<span>前月比: ${diffSign}${formatCurrency(assetDiff)}</span>`;
-        } else {
-            assetTrendEl.className = 'card-trend';
-            assetTrendEl.innerHTML = `<span>前月比較データなし</span>`;
-        }
+    document.getElementById('total-assets').textContent = selectedAsset ? formatCurrency(selectedAsset.total) : '—';
+    if (selectedAsset && previousAsset) {
+        const assetDiff = Number(selectedAsset.total || 0) - Number(previousAsset.total || 0);
+        assetTrendEl.className = `card-trend ${assetDiff >= 0 ? 'text-success' : 'text-danger'}`;
+        assetTrendEl.textContent = `前月末比: ${assetDiff >= 0 ? '+' : ''}${formatCurrency(assetDiff)}`;
+    } else {
+        assetTrendEl.className = 'card-trend';
+        assetTrendEl.textContent = selectedAsset ? '前月比較データなし' : '選択月の記録なし';
     }
-
-    // 同期ボタン下の更新日時表示
     const updateDateEl = document.getElementById('assets-update-date');
-    if (updateDateEl) {
-        updateDateEl.innerHTML = `<i class="fa-solid fa-clock"></i> <span>${latestAssetDate}</span>`;
-    }
-    
+    updateDateEl.replaceChildren();
+    const clockIcon = document.createElement('i');
+    clockIcon.className = 'fa-solid fa-clock';
+    const updateText = document.createElement('span');
+    updateText.textContent = selectedAsset ? formatAssetUpdateDate(selectedAsset.date) : '選択月の記録なし';
+    updateDateEl.append(clockIcon, updateText);
+
+    const incomeDiff = totalIncome - prevTotalIncome;
     document.getElementById('total-income').textContent = formatCurrency(totalIncome);
-    document.getElementById('income-desc').innerHTML = `<span>${incomeTrendText}</span>`;
-    
-    // 表示上は今月全体の総支出を表示しつつ、トレンドに前月同日比を表示する
-    const allExpensesTotal = currentExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0) + totalSubsMonthly;
+    document.getElementById('income-desc').textContent = `前月比: ${incomeDiff >= 0 ? '+' : ''}${formatCurrency(incomeDiff)}`;
     document.getElementById('total-expenses').textContent = formatCurrency(allExpensesTotal);
-    
+    const expenseDiff = totalExpenses - prevTotalExpenses;
     const expenseTrendEl = document.getElementById('expense-desc-card');
-    if (expenseTrendEl) {
-        if (expenseDiff >= 0) {
-            expenseTrendEl.className = 'card-trend text-danger'; // 支出増は赤
-        } else {
-            expenseTrendEl.className = 'card-trend text-success'; // 支出減は緑
-        }
-        expenseTrendEl.innerHTML = `<span>${expenseTrendText}</span>`;
-    }
-    
-    // 今月の収支の集計と描画
-    // 今月の収支 ＝ 今月の手取り収入 - 今月の総支出（1日〜基準日までの変動費 + サブスク）
+    expenseTrendEl.className = `card-trend ${expenseDiff > 0 ? 'text-danger' : 'text-success'}`;
+    expenseTrendEl.textContent = `${isCurrentMonth ? '前月同日比' : '前月比'}: ${expenseDiff >= 0 ? '+' : ''}${formatCurrency(expenseDiff)}`;
+
     const currentBalance = totalIncome - totalExpenses;
-    const prevBalance = prevTotalIncome - prevTotalExpenses;
-    const balanceDiff = currentBalance - prevBalance;
-    const balanceDiffSign = balanceDiff >= 0 ? "+" : "";
-    
+    const previousBalance = prevTotalIncome - prevTotalExpenses;
+    const balanceDiff = currentBalance - previousBalance;
     const balanceEl = document.getElementById('monthly-balance');
+    balanceEl.textContent = formatCurrency(currentBalance);
+    balanceEl.className = `card-value ${currentBalance >= 0 ? 'text-primary' : 'text-danger'}`;
     const balanceTrendEl = document.getElementById('balance-trend');
-    
-    if (balanceEl) {
-        balanceEl.textContent = formatCurrency(currentBalance);
-        if (currentBalance >= 0) {
-            balanceEl.className = 'card-value text-primary';
-        } else {
-            balanceEl.className = 'card-value text-danger';
-        }
-    }
-    
-    if (balanceTrendEl) {
-        if (balanceDiff >= 0) {
-            balanceTrendEl.className = 'card-trend text-success';
-        } else {
-            balanceTrendEl.className = 'card-trend text-danger';
-        }
-        balanceTrendEl.innerHTML = `<span>${isCurrentMonth ? "前月同日比" : "前月比"}: ${balanceDiffSign}${formatCurrency(balanceDiff)}</span>`;
-    }
-
+    balanceTrendEl.className = `card-trend ${balanceDiff >= 0 ? 'text-success' : 'text-danger'}`;
+    balanceTrendEl.textContent = `${isCurrentMonth ? '前月同日比' : '前月比'}: ${balanceDiff >= 0 ? '+' : ''}${formatCurrency(balanceDiff)}`;
     document.getElementById('total-subs-monthly').textContent = formatCurrency(totalSubsMonthly);
-    document.getElementById('total-subs-count').innerHTML = `<span>契約数: ${state.subscriptions.length} 件</span>`;
+    document.getElementById('total-subs-count').textContent = `契約数: ${state.subscriptions.length} 件`;
 
-    // 3. グラフの描画
+    document.getElementById('category-chart-title').textContent = `${state.currentMonth.getFullYear()}年${state.currentMonth.getMonth() + 1}月の支出内訳`;
+    document.getElementById('recent-expenses-title').textContent = `${state.currentMonth.getFullYear()}年${state.currentMonth.getMonth() + 1}月の最近の支出`;
+    renderBudgetProgress(selectedAsset, currentExpenses, totalSubsMonthly);
     renderAssetChart();
     renderCashflowChart();
-    renderCategoryDoughnut(currentExpenses);
-
-    // 4. 最近の支出一覧（最大5件）
+    renderCategoryDoughnut(currentExpenses, totalSubsMonthly);
     renderRecentExpenses(currentExpenses);
-
-    // 5. サブスク一覧
     renderActiveSubsTable();
 }
 
@@ -589,19 +580,21 @@ function renderRecentExpenses(currentMonthExpenses) {
     const tbody = document.getElementById('recent-expenses-tbody');
     tbody.innerHTML = '';
 
-    const recent = currentMonthExpenses.slice(0, 5);
+    const recent = [...currentMonthExpenses]
+        .sort((a, b) => safeParseDate(b.date) - safeParseDate(a.date))
+        .slice(0, 5);
 
     if (recent.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">今月の支出データはありません。</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">選択月の支出データはありません。</td></tr>';
         return;
     }
 
     recent.forEach(exp => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${formatDayAndWeek(exp.date)}</td>
-            <td><span class="badge">${exp.category}</span></td>
-            <td>${exp.description || '---'}</td>
+            <td>${escapeHtml(formatDayAndWeek(exp.date))}</td>
+            <td><span class="badge">${escapeHtml(exp.category)}</span></td>
+            <td>${escapeHtml(exp.description || '---')}</td>
             <td class="text-right text-danger">-${formatCurrency(exp.amount)}</td>
         `;
         tbody.appendChild(row);
@@ -620,7 +613,7 @@ function renderActiveSubsTable() {
     state.subscriptions.forEach(sub => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td><strong>${sub.name}</strong></td>
+            <td><strong>${escapeHtml(sub.name)}</strong></td>
             <td>年 ${sub.paymentCount} 回</td>
             <td>${formatCurrency(sub.amount)}</td>
             <td class="text-right font-bold text-primary">${formatCurrency(sub.monthlyAmount)} /月</td>
@@ -988,69 +981,115 @@ function renderCashflowChart() {
     });
 }
 
+const doughnutCenterLabel = {
+    id: 'doughnutCenterLabel',
+    afterDraw(chart, _args, options) {
+        const { ctx, chartArea } = chart;
+        if (!chartArea) return;
+        const centerX = (chartArea.left + chartArea.right) / 2;
+        const centerY = (chartArea.top + chartArea.bottom) / 2;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#64748b';
+        ctx.font = '600 11px "Plus Jakarta Sans", sans-serif';
+        ctx.fillText(options.caption || '支出合計', centerX, centerY - 12);
+        ctx.fillStyle = '#0f172a';
+        ctx.font = '700 16px "Plus Jakarta Sans", sans-serif';
+        ctx.fillText(formatCurrency(options.total || 0), centerX, centerY + 11);
+        ctx.restore();
+    }
+};
+
 // カテゴリ別支出割合 (ドーナツ)
-function renderCategoryDoughnut(currentMonthExpenses) {
+function renderCategoryDoughnut(currentMonthExpenses, totalSubsMonthly) {
     const ctx = document.getElementById('category-distribution-chart').getContext('2d');
 
     const expenseByCat = {};
     currentMonthExpenses.forEach(exp => {
-        expenseByCat[exp.category] = (expenseByCat[exp.category] || 0) + exp.amount;
+        const category = exp.category || '未分類';
+        expenseByCat[category] = (expenseByCat[category] || 0) + Number(exp.amount || 0);
     });
+    if (totalSubsMonthly > 0) expenseByCat['サブスク'] = (expenseByCat['サブスク'] || 0) + totalSubsMonthly;
 
-    const labels = Object.keys(expenseByCat);
-    const dataVals = Object.values(expenseByCat);
+    const categoryEntries = Object.entries(expenseByCat).sort((a, b) => b[1] - a[1]);
+    const labels = categoryEntries.map(([category]) => category);
+    const dataVals = categoryEntries.map(([, amount]) => amount);
+    const total = dataVals.reduce((sum, amount) => sum + amount, 0);
+    const colors = ['#205c2c', '#3f7d4c', '#6a9f75', '#97b99e', '#c3d5c7', '#9b7b4f', '#b59a73', '#64748b', '#94a3b8'];
+
+    const topList = document.getElementById('category-top-list');
+    topList.replaceChildren();
+    categoryEntries.slice(0, 5).forEach(([category, amount], index) => {
+        const item = document.createElement('li');
+        const label = document.createElement('span');
+        label.className = 'category-rank-label';
+        const dot = document.createElement('span');
+        dot.className = 'category-color-dot';
+        dot.style.backgroundColor = colors[index % colors.length];
+        const name = document.createElement('span');
+        name.textContent = category;
+        label.append(dot, name);
+        const value = document.createElement('strong');
+        value.textContent = formatCurrency(amount);
+        item.append(label, value);
+        topList.appendChild(item);
+    });
 
     if (categoryDistributionChart) {
         categoryDistributionChart.destroy();
     }
 
     if (dataVals.length === 0) {
+        const emptyItem = document.createElement('li');
+        emptyItem.className = 'category-empty';
+        emptyItem.textContent = '選択月の支出データはありません。';
+        topList.appendChild(emptyItem);
         categoryDistributionChart = new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: ['データなし'],
                 datasets: [{ data: [1], backgroundColor: ['#e2e8f0'], borderWidth: 0 }]
             },
+            plugins: [doughnutCenterLabel],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } }
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false },
+                    doughnutCenterLabel: { caption: '支出合計', total: 0 }
+                },
+                cutout: '68%'
             }
         });
     } else {
-        const colors = ['#4f46e5', '#a855f7', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#14b8a6', '#64748b'];
-
         categoryDistributionChart = new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: labels,
                 datasets: [{
                     data: dataVals,
-                    backgroundColor: colors.slice(0, labels.length),
-                    borderWidth: 2,
+                    backgroundColor: labels.map((_, index) => colors[index % colors.length]),
+                    borderWidth: 1,
                     borderColor: '#ffffff',
-                    hoverOffset: 6
+                    hoverOffset: 4
                 }]
             },
+            plugins: [doughnutCenterLabel],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        position: 'right',
-                        labels: {
-                            font: { family: 'Plus Jakarta Sans', size: 11 },
-                            color: '#475569',
-                            padding: 8
-                        }
-                    },
+                    legend: { display: false },
                     tooltip: {
                         callbacks: {
                             label: (ctx) => ` ${ctx.label}: ${formatCurrency(ctx.raw)}`
                         }
-                    }
+                    },
+                    doughnutCenterLabel: { caption: '支出合計', total }
                 },
-                cutout: '60%'
+                cutout: '68%'
             }
         });
     }
@@ -1098,7 +1137,7 @@ function renderExpensesList() {
 
     const tbody = document.getElementById('expense-table-tbody');
     tbody.innerHTML = '';
-    document.getElementById('expense-count').textContent = `今月の支出明細: 全 ${displayList.length} 件`;
+    document.getElementById('expense-count').textContent = `選択月の支出明細: 全 ${displayList.length} 件`;
 
     if (displayList.length === 0) {
         tbody.innerHTML = '<tr><td colspan="4" class="empty-state">条件に該当する支出明細はありません。</td></tr>';
@@ -1108,9 +1147,9 @@ function renderExpensesList() {
     displayList.forEach(exp => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${formatDayAndWeek(exp.date)}</td>
-            <td><span class="badge">${exp.category}</span></td>
-            <td>${exp.description || '---'}</td>
+            <td>${escapeHtml(formatDayAndWeek(exp.date))}</td>
+            <td><span class="badge">${escapeHtml(exp.category)}</span></td>
+            <td>${escapeHtml(exp.description || '---')}</td>
             <td class="text-right text-danger font-bold">-${formatCurrency(exp.amount)}</td>
         `;
         tbody.appendChild(row);
@@ -1143,10 +1182,10 @@ function renderIncomesList() {
     // 現在選択されている月の収入をフィルタリング
     const currentMonthIncomes = filterIncomesByMonth(state.incomes, state.currentMonth);
     
-    document.getElementById('income-count').textContent = `今月の収入明細: 全 ${currentMonthIncomes.length} 件`;
+    document.getElementById('income-count').textContent = `選択月の収入明細: 全 ${currentMonthIncomes.length} 件`;
 
     if (currentMonthIncomes.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="empty-state">今月の収入明細はありません。</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="empty-state">選択月の収入明細はありません。</td></tr>';
         return;
     }
 
@@ -1157,8 +1196,8 @@ function renderIncomesList() {
 
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td><strong>${monthDisplay}</strong></td>
-            <td><span class="badge-type income">${inc.incomeType}</span></td>
+            <td><strong>${escapeHtml(monthDisplay)}</strong></td>
+            <td><span class="badge-type income">${escapeHtml(inc.incomeType)}</span></td>
             <td>${formatCurrency(inc.grossPay)}</td>
             <td class="text-muted">${formatCurrency(inc.incomeTax)}</td>
             <td class="text-muted">${formatCurrency(inc.inhabitantTax)}</td>
@@ -1186,7 +1225,7 @@ function renderSubscriptionsList() {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${sub.year}年</td>
-            <td><strong>${sub.name}</strong></td>
+            <td><strong>${escapeHtml(sub.name)}</strong></td>
             <td>${formatCurrency(sub.amount)}</td>
             <td>年 ${sub.paymentCount} 回</td>
             <td>${formatCurrency(sub.annualAmount)}</td>
@@ -1269,11 +1308,10 @@ function initFormLogic() {
             if (state.isDemoMode) {
                 newExpense.id = 'demo-exp-' + Date.now();
                 state.expenses.unshift(newExpense);
-                localStorage.setItem('kakeibo_demo_expenses', JSON.stringify(state.expenses));
+                localStorage.setItem('kakeibo_demo_expenses_v2', JSON.stringify(state.expenses));
                 showToast('【デモモード】ローカルに支出を一時保存しました。スプレッドシートには反映されません。', 'warning');
                 onTransactionSaved();
             } else {
-                console.log("Sending POST to GAS:", state.gasUrl, newExpense);
                 const response = await fetch(state.gasUrl, {
                     method: 'POST',
                     headers: {
@@ -1292,8 +1330,6 @@ function initFormLogic() {
                 } catch (jsonErr) {
                     throw new Error("GASからのレスポンスをJSONとして解析できませんでした。Webアプリの公開設定が「全員(Anyone)」になっているか確認してください。");
                 }
-
-                console.log("GAS Response Received:", data);
 
                 if (data.status === 'success') {
                     showToast('スプレッドシートに支出を追記しました！', 'success');
@@ -1352,11 +1388,10 @@ function initFormLogic() {
             if (state.isDemoMode) {
                 newIncome.id = 'demo-inc-' + Date.now();
                 state.incomes.unshift(newIncome);
-                localStorage.setItem('kakeibo_demo_incomes', JSON.stringify(state.incomes));
+                localStorage.setItem('kakeibo_demo_incomes_v2', JSON.stringify(state.incomes));
                 showToast('【デモモード】ローカルに収入を一時保存しました。スプレッドシートには反映されません。', 'warning');
                 onTransactionSaved();
             } else {
-                console.log("Sending POST to GAS:", state.gasUrl, newIncome);
                 const response = await fetch(state.gasUrl, {
                     method: 'POST',
                     headers: {
@@ -1375,8 +1410,6 @@ function initFormLogic() {
                 } catch (jsonErr) {
                     throw new Error("GASからのレスポンスをJSONとして解析できませんでした。Webアプリの公開設定が「全員(Anyone)」になっているか確認してください。");
                 }
-
-                console.log("GAS Response Received:", data);
 
                 if (data.status === 'success') {
                     showToast('スプレッドシートに収入を追記しました！', 'success');
@@ -1519,7 +1552,6 @@ function initSettings() {
         showLoading(true);
 
         try {
-            console.log("Testing GAS URL connection:", url);
             const apiUrl = url + (url.includes('?') ? '&' : '?') + 'api=1';
             const response = await fetch(apiUrl, { method: 'GET' });
             
@@ -1534,17 +1566,12 @@ function initSettings() {
                 throw new Error("GASからのレスポンスをJSONとして解析できませんでした。Webアプリの公開設定が「全員(Anyone)」になっているか確認してください。");
             }
 
-            console.log("GAS Connection Test Response:", data);
-
             if (data.status === 'success') {
                 state.gasUrl = url;
                 localStorage.setItem('kakeibo_gas_url', url);
                 state.isDemoMode = false;
                 
-                state.assets = data.assets || [];
-                state.incomes = data.incomes || [];
-                state.expenses = data.expenses || [];
-                state.subscriptions = data.subscriptions || [];
+                applyApiData(data);
 
                 updateConnectionStatusUI();
                 renderDashboard();

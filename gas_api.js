@@ -13,9 +13,12 @@ const SHEET_ASSETS = "週次資産記録";
 const SHEET_EXPENSES = "支出記録";
 const SHEET_INCOMES = "収入記録";
 const SHEET_SUBSCRIPTIONS = "サブスク管理";
+const SHEET_ANNUAL_BUDGETS = "年度予算";
+const SHEET_ITEM_BUDGETS = "費目別予算";
+const SHEET_ASSET_TARGETS = "資産目標";
 
 /**
- * GETリクエスト処理：4つのシートのデータをJSONで返します
+ * GETリクエスト処理：家計4シートと計画3シートのデータをJSONで返します
  */
 function doGet(e) {
   try {
@@ -95,12 +98,70 @@ function doGet(e) {
       });
     }
 
+    // 5. 年度予算（1行＝1年度の機械可読な計画値）
+    const annualBudgetSheet = ss.getSheetByName(SHEET_ANNUAL_BUDGETS);
+    const annualBudgetRows = annualBudgetSheet ? annualBudgetSheet.getDataRange().getValues() : [];
+    const annualBudgets = [];
+    for (let i = 1; i < annualBudgetRows.length; i++) {
+      const row = annualBudgetRows[i];
+      if (!row[0]) continue;
+      annualBudgets.push({
+        fiscalYear: String(row[0]),
+        takeHomePlan: Number(row[1] || 0),
+        recurringMonthly: Number(row[2] || 0),
+        recurringAnnual: Number(row[3] || 0),
+        specialAnnual: Number(row[4] || 0),
+        totalBudget: Number(row[5] || 0),
+        assetIncreaseTarget: Number(row[6] || 0),
+        yearEndPlan: Number(row[7] || 0),
+        minimumAssetTarget: Number(row[8] || 0),
+        buffer: Number(row[9] || 0)
+      });
+    }
+
+    // 6. 費目別予算（経常・特別の分類ルールを含む）
+    const itemBudgetSheet = ss.getSheetByName(SHEET_ITEM_BUDGETS);
+    const itemBudgetRows = itemBudgetSheet ? itemBudgetSheet.getDataRange().getValues() : [];
+    const itemBudgets = [];
+    for (let i = 1; i < itemBudgetRows.length; i++) {
+      const row = itemBudgetRows[i];
+      if (!row[0] || !row[2]) continue;
+      itemBudgets.push({
+        fiscalYear: String(row[0]),
+        budgetType: String(row[1] || ""),
+        item: String(row[2] || ""),
+        unit: String(row[3] || ""),
+        budgetAmount: Number(row[4] || 0),
+        expenseCategory: String(row[5] || ""),
+        minimumAmount: Number(row[6] || 0),
+        note: String(row[7] || "")
+      });
+    }
+
+    // 7. 資産目標（暦年末の金融資産目標）
+    const assetTargetSheet = ss.getSheetByName(SHEET_ASSET_TARGETS);
+    const assetTargetRows = assetTargetSheet ? assetTargetSheet.getDataRange().getValues() : [];
+    const assetTargets = [];
+    for (let i = 1; i < assetTargetRows.length; i++) {
+      const row = assetTargetRows[i];
+      if (!row[0]) continue;
+      assetTargets.push({
+        calendarYear: Number(row[0]),
+        targetAmount: Number(row[1] || 0),
+        targetType: String(row[2] || ""),
+        note: String(row[3] || "")
+      });
+    }
+
     return createJsonResponse({
       status: "success",
       assets: assets,
       incomes: incomes.reverse(),
       expenses: expenses.reverse(),
-      subscriptions: subscriptions
+      subscriptions: subscriptions,
+      annualBudgets: annualBudgets,
+      itemBudgets: itemBudgets,
+      assetTargets: assetTargets
     });
 
   } catch (error) {
