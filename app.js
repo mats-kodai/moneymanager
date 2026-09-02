@@ -24,6 +24,65 @@ const state = {
     isDemoMode: true
 };
 
+// Material 3 roles are the single source of truth for canvas and DOM colors.
+function getThemeRole(roleName) {
+    return getComputedStyle(document.documentElement)
+        .getPropertyValue(`--md-sys-color-${roleName}`)
+        .trim();
+}
+
+function colorWithAlpha(hexColor, alpha) {
+    const hex = hexColor.replace('#', '');
+    const normalized = hex.length === 3
+        ? hex.split('').map(character => character + character).join('')
+        : hex;
+    const red = parseInt(normalized.slice(0, 2), 16);
+    const green = parseInt(normalized.slice(2, 4), 16);
+    const blue = parseInt(normalized.slice(4, 6), 16);
+    return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
+function getChartTheme() {
+    return {
+        primary: getThemeRole('primary'),
+        onPrimary: getThemeRole('on-primary'),
+        primaryContainer: getThemeRole('primary-container'),
+        onPrimaryContainer: getThemeRole('on-primary-container'),
+        secondaryContainer: getThemeRole('secondary-container'),
+        onSecondaryContainer: getThemeRole('on-secondary-container'),
+        tertiaryContainer: getThemeRole('tertiary-container'),
+        onTertiaryContainer: getThemeRole('on-tertiary-container'),
+        surface: getThemeRole('surface'),
+        surfaceContainerHigh: getThemeRole('surface-container-high'),
+        surfaceContainerHighest: getThemeRole('surface-container-highest'),
+        onSurface: getThemeRole('on-surface'),
+        onSurfaceVariant: getThemeRole('on-surface-variant'),
+        outline: getThemeRole('outline'),
+        outlineVariant: getThemeRole('outline-variant'),
+        inverseSurface: getThemeRole('inverse-surface'),
+        inverseOnSurface: getThemeRole('inverse-on-surface'),
+        inversePrimary: getThemeRole('inverse-primary'),
+        error: getThemeRole('error')
+    };
+}
+
+function initMaterialInteractions() {
+    const rippleTargets = document.querySelectorAll('.menu-item, .bottom-nav-item, .link-more');
+    rippleTargets.forEach(target => {
+        if (!target.querySelector(':scope > md-ripple')) {
+            target.prepend(document.createElement('md-ripple'));
+        }
+    });
+
+    const theme = getChartTheme();
+    Chart.defaults.color = theme.onSurfaceVariant;
+    Chart.defaults.borderColor = theme.outlineVariant;
+    Chart.defaults.font.family = 'Roboto, "Noto Sans JP", sans-serif';
+    Chart.defaults.plugins.tooltip.backgroundColor = theme.inverseSurface;
+    Chart.defaults.plugins.tooltip.titleColor = theme.inverseOnSurface;
+    Chart.defaults.plugins.tooltip.bodyColor = theme.inverseOnSurface;
+}
+
 // --- Generic demo data (actual spreadsheet values are never bundled in GitHub) ---
 const MOCK_ASSETS = [
     { date: "2026/06/27", total: 1210000, cash: 500000, stocks: 180000, trusts: 510000, points: 20000 },
@@ -82,6 +141,7 @@ let categoryDistributionChart = null;
 
 // --- Initialize App ---
 document.addEventListener('DOMContentLoaded', () => {
+    initMaterialInteractions();
     initCategories();
     initNavigation();
     initMonthSelector();
@@ -116,6 +176,7 @@ function initNavigation() {
     const tabPanes = document.querySelectorAll('.tab-pane');
 
     navLinks.forEach(item => {
+        if (item.classList.contains('active')) item.setAttribute('aria-current', 'page');
         item.addEventListener('click', (e) => {
             e.preventDefault();
             const tabId = item.getAttribute('data-tab');
@@ -124,8 +185,10 @@ function initNavigation() {
             navLinks.forEach(link => {
                 if (link.getAttribute('data-tab') === tabId) {
                     link.classList.add('active');
+                    link.setAttribute('aria-current', 'page');
                 } else {
                     link.classList.remove('active');
+                    link.removeAttribute('aria-current');
                 }
             });
 
@@ -157,8 +220,12 @@ function initNavigation() {
         btn.addEventListener('click', () => {
             const subtabId = btn.getAttribute('data-subtab');
             
-            subTabBtns.forEach(b => b.classList.remove('active'));
+            subTabBtns.forEach(b => {
+                b.classList.remove('active');
+                b.setAttribute('aria-pressed', 'false');
+            });
             btn.classList.add('active');
+            btn.setAttribute('aria-pressed', 'true');
 
             subTabPanes.forEach(pane => pane.classList.remove('active'));
             document.getElementById(`subtab-${subtabId}`).classList.add('active');
@@ -539,8 +606,10 @@ function renderDashboard() {
     }
     const updateDateEl = document.getElementById('assets-update-date');
     updateDateEl.replaceChildren();
-    const clockIcon = document.createElement('i');
-    clockIcon.className = 'fa-solid fa-clock';
+    const clockIcon = document.createElement('span');
+    clockIcon.className = 'material-symbols-rounded';
+    clockIcon.setAttribute('aria-hidden', 'true');
+    clockIcon.textContent = 'schedule';
     const updateText = document.createElement('span');
     updateText.textContent = selectedAsset ? formatAssetUpdateDate(selectedAsset.date) : '選択月の記録なし';
     updateDateEl.append(clockIcon, updateText);
@@ -669,22 +738,23 @@ function renderAssetChart() {
         if (isNaN(d.getTime()) || d.getTime() === 0) return String(a.date).split(" ")[0];
         return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
     }); // 年月日すべて表示
-    const themeColor = '#2a7a00'; // フォレストグリーン
+    const theme = getChartTheme();
+    const themeColor = theme.primary;
 
     if (assetTrendChart) {
         assetTrendChart.destroy();
     }
 
-    // テーマカラーとフォント
-    const fontConfig = { family: 'Plus Jakarta Sans', size: 11, color: '#475569' };
+    // Theme roles also drive Chart.js, which renders outside normal CSS styling.
+    const fontConfig = { family: 'Roboto, "Noto Sans JP", sans-serif', size: 11 };
 
     if (!state.showAssetsBreakdown) {
         // 総資産のみの一本のライン
         const totals = sortedAssets.map(a => a.total);
         
         const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-        gradient.addColorStop(0, 'rgba(42, 122, 0, 0.15)'); // フォレストグリーンの半透明
-        gradient.addColorStop(1, 'rgba(42, 122, 0, 0.0)');
+        gradient.addColorStop(0, colorWithAlpha(theme.primary, 0.18));
+        gradient.addColorStop(1, colorWithAlpha(theme.primary, 0));
 
         assetTrendChart = new Chart(ctx, {
             type: 'line',
@@ -725,12 +795,12 @@ function renderAssetChart() {
                     }
                 },
                 scales: {
-                    x: { grid: { color: '#e2e8f0' }, ticks: { font: fontConfig, color: '#475569' } },
+                    x: { grid: { color: theme.outlineVariant }, ticks: { font: fontConfig, color: theme.onSurfaceVariant } },
                     y: {
-                        grid: { color: '#e2e8f0' },
+                        grid: { color: theme.outlineVariant },
                         ticks: {
                             font: fontConfig,
-                            color: '#475569',
+                            color: theme.onSurfaceVariant,
                             callback: (val) => val >= 10000 ? (val / 10000) + '万円' : val + '円'
                         }
                     }
@@ -752,38 +822,38 @@ function renderAssetChart() {
                     {
                         label: '預金・現金・暗号資産',
                         data: cash,
-                        borderColor: '#3b82f6', // 青
-                        backgroundColor: 'rgba(59, 130, 246, 0.35)',
+                        borderColor: theme.onTertiaryContainer,
+                        backgroundColor: colorWithAlpha(theme.onTertiaryContainer, 0.24),
                         fill: true,
                         tension: 0.25,
-                        pointBackgroundColor: '#3b82f6'
+                        pointBackgroundColor: theme.onTertiaryContainer
                     },
                     {
                         label: '投資信託',
                         data: trusts,
-                        borderColor: '#10b981', // 緑
-                        backgroundColor: 'rgba(16, 185, 129, 0.35)',
+                        borderColor: theme.primary,
+                        backgroundColor: colorWithAlpha(theme.primary, 0.24),
                         fill: true,
                         tension: 0.25,
-                        pointBackgroundColor: '#10b981'
+                        pointBackgroundColor: theme.primary
                     },
                     {
                         label: '株式(現物)',
                         data: stocks,
-                        borderColor: '#a855f7', // 紫
-                        backgroundColor: 'rgba(168, 85, 247, 0.35)',
+                        borderColor: theme.inverseSurface,
+                        backgroundColor: colorWithAlpha(theme.inverseSurface, 0.2),
                         fill: true,
                         tension: 0.25,
-                        pointBackgroundColor: '#a855f7'
+                        pointBackgroundColor: theme.inverseSurface
                     },
                     {
                         label: 'ポイント',
                         data: points,
-                        borderColor: '#f59e0b', // 黄色
-                        backgroundColor: 'rgba(245, 158, 11, 0.35)',
+                        borderColor: theme.outline,
+                        backgroundColor: colorWithAlpha(theme.outline, 0.24),
                         fill: true,
                         tension: 0.25,
-                        pointBackgroundColor: '#f59e0b'
+                        pointBackgroundColor: theme.outline
                     }
                 ]
             },
@@ -803,7 +873,7 @@ function renderAssetChart() {
                 plugins: {
                     legend: {
                         position: 'top',
-                        labels: { font: { family: 'Plus Jakarta Sans', size: 11 }, color: '#475569' }
+                        labels: { font: fontConfig, color: theme.onSurfaceVariant }
                     },
                     tooltip: {
                         callbacks: {
@@ -812,13 +882,13 @@ function renderAssetChart() {
                     }
                 },
                 scales: {
-                    x: { grid: { color: '#e2e8f0' }, ticks: { font: fontConfig, color: '#475569' } },
+                    x: { grid: { color: theme.outlineVariant }, ticks: { font: fontConfig, color: theme.onSurfaceVariant } },
                     y: {
                         stacked: true,
-                        grid: { color: '#e2e8f0' },
+                        grid: { color: theme.outlineVariant },
                         ticks: {
                             font: fontConfig,
-                            color: '#475569',
+                            color: theme.onSurfaceVariant,
                             callback: (val) => val >= 10000 ? (val / 10000) + '万円' : val + '円'
                         }
                     }
@@ -831,13 +901,17 @@ function renderAssetChart() {
 // 資産グラフ切替ボタンのバインド
 document.getElementById('btn-toggle-total').addEventListener('click', () => {
     document.getElementById('btn-toggle-total').classList.add('active');
+    document.getElementById('btn-toggle-total').setAttribute('aria-pressed', 'true');
     document.getElementById('btn-toggle-breakdown').classList.remove('active');
+    document.getElementById('btn-toggle-breakdown').setAttribute('aria-pressed', 'false');
     state.showAssetsBreakdown = false;
     renderAssetChart();
 });
 document.getElementById('btn-toggle-breakdown').addEventListener('click', () => {
     document.getElementById('btn-toggle-breakdown').classList.add('active');
+    document.getElementById('btn-toggle-breakdown').setAttribute('aria-pressed', 'true');
     document.getElementById('btn-toggle-total').classList.remove('active');
+    document.getElementById('btn-toggle-total').setAttribute('aria-pressed', 'false');
     state.showAssetsBreakdown = true;
     renderAssetChart();
 });
@@ -845,8 +919,12 @@ document.getElementById('btn-toggle-breakdown').addEventListener('click', () => 
 // 期間切り替えボタンのバインド
 document.querySelectorAll('.btn-range').forEach(btn => {
     btn.addEventListener('click', () => {
-        document.querySelectorAll('.btn-range').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.btn-range').forEach(b => {
+            b.classList.remove('active');
+            b.setAttribute('aria-pressed', 'false');
+        });
         btn.classList.add('active');
+        btn.setAttribute('aria-pressed', 'true');
         state.assetRange = btn.getAttribute('data-range');
         renderAssetChart();
     });
@@ -878,6 +956,8 @@ function updateAssetDetailPanel(data) {
 // 月次収支推移 (過去6ヶ月)
 function renderCashflowChart() {
     const ctx = document.getElementById('monthly-trend-chart').getContext('2d');
+    const theme = getChartTheme();
+    const chartFont = { family: 'Roboto, "Noto Sans JP", sans-serif', size: 11 };
     
     // サブスク月額合計の取得
     let totalSubsMonthly = 0;
@@ -941,14 +1021,14 @@ function renderCashflowChart() {
                 {
                     label: '手取り収入',
                     data: incomesData,
-                    backgroundColor: '#10b981', // 緑
-                    borderRadius: 4
+                    backgroundColor: theme.primary,
+                    borderRadius: 8
                 },
                 {
                     label: '総支出 (サブスク含)',
                     data: expensesData,
-                    backgroundColor: '#f43f5e', // 赤
-                    borderRadius: 4
+                    backgroundColor: theme.error,
+                    borderRadius: 8
                 }
             ]
         },
@@ -958,7 +1038,7 @@ function renderCashflowChart() {
             plugins: {
                 legend: {
                     position: 'top',
-                    labels: { font: { family: 'Plus Jakarta Sans', size: 11 }, color: '#475569' }
+                    labels: { font: chartFont, color: theme.onSurfaceVariant }
                 },
                 tooltip: {
                     callbacks: {
@@ -967,12 +1047,12 @@ function renderCashflowChart() {
                 }
             },
             scales: {
-                x: { grid: { display: false }, ticks: { font: { family: 'Plus Jakarta Sans' }, color: '#475569' } },
+                x: { grid: { display: false }, ticks: { font: chartFont, color: theme.onSurfaceVariant } },
                 y: {
-                    grid: { color: '#e2e8f0' },
+                    grid: { color: theme.outlineVariant },
                     ticks: {
-                        font: { family: 'Plus Jakarta Sans', size: 10 },
-                        color: '#475569',
+                        font: chartFont,
+                        color: theme.onSurfaceVariant,
                         callback: (val) => val >= 10000 ? (val / 10000) + '万円' : val + '円'
                     }
                 }
@@ -991,11 +1071,12 @@ const doughnutCenterLabel = {
         ctx.save();
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#64748b';
-        ctx.font = '600 11px "Plus Jakarta Sans", sans-serif';
+        const theme = getChartTheme();
+        ctx.fillStyle = theme.onSurfaceVariant;
+        ctx.font = '600 11px Roboto, "Noto Sans JP", sans-serif';
         ctx.fillText(options.caption || '支出合計', centerX, centerY - 12);
-        ctx.fillStyle = '#0f172a';
-        ctx.font = '700 16px "Plus Jakarta Sans", sans-serif';
+        ctx.fillStyle = theme.onSurface;
+        ctx.font = '700 16px Roboto, "Noto Sans JP", sans-serif';
         ctx.fillText(formatCurrency(options.total || 0), centerX, centerY + 11);
         ctx.restore();
     }
@@ -1004,6 +1085,7 @@ const doughnutCenterLabel = {
 // カテゴリ別支出割合 (ドーナツ)
 function renderCategoryDoughnut(currentMonthExpenses, totalSubsMonthly) {
     const ctx = document.getElementById('category-distribution-chart').getContext('2d');
+    const theme = getChartTheme();
 
     const expenseByCat = {};
     currentMonthExpenses.forEach(exp => {
@@ -1016,7 +1098,17 @@ function renderCategoryDoughnut(currentMonthExpenses, totalSubsMonthly) {
     const labels = categoryEntries.map(([category]) => category);
     const dataVals = categoryEntries.map(([, amount]) => amount);
     const total = dataVals.reduce((sum, amount) => sum + amount, 0);
-    const colors = ['#205c2c', '#3f7d4c', '#6a9f75', '#97b99e', '#c3d5c7', '#9b7b4f', '#b59a73', '#64748b', '#94a3b8'];
+    const colors = [
+        theme.primary,
+        theme.onTertiaryContainer,
+        theme.inversePrimary,
+        theme.onSecondaryContainer,
+        theme.outline,
+        theme.primaryContainer,
+        theme.tertiaryContainer,
+        theme.inverseSurface,
+        theme.outlineVariant
+    ];
 
     const topList = document.getElementById('category-top-list');
     topList.replaceChildren();
@@ -1049,7 +1141,7 @@ function renderCategoryDoughnut(currentMonthExpenses, totalSubsMonthly) {
             type: 'doughnut',
             data: {
                 labels: ['データなし'],
-                datasets: [{ data: [1], backgroundColor: ['#e2e8f0'], borderWidth: 0 }]
+                datasets: [{ data: [1], backgroundColor: [theme.surfaceContainerHighest], borderWidth: 0 }]
             },
             plugins: [doughnutCenterLabel],
             options: {
@@ -1072,7 +1164,7 @@ function renderCategoryDoughnut(currentMonthExpenses, totalSubsMonthly) {
                     data: dataVals,
                     backgroundColor: labels.map((_, index) => colors[index % colors.length]),
                     borderWidth: 1,
-                    borderColor: '#ffffff',
+                    borderColor: theme.surface,
                     hoverOffset: 4
                 }]
             },
@@ -1245,14 +1337,18 @@ function initFormLogic() {
 
     btnExp.addEventListener('click', () => {
         btnExp.classList.add('active');
+        btnExp.setAttribute('aria-pressed', 'true');
         btnInc.classList.remove('active');
+        btnInc.setAttribute('aria-pressed', 'false');
         formExp.classList.remove('hidden');
         formInc.classList.add('hidden');
     });
 
     btnInc.addEventListener('click', () => {
         btnInc.classList.add('active');
+        btnInc.setAttribute('aria-pressed', 'true');
         btnExp.classList.remove('active');
+        btnExp.setAttribute('aria-pressed', 'false');
         formInc.classList.remove('hidden');
         formExp.classList.add('hidden');
     });
@@ -1684,13 +1780,15 @@ function showToast(message, type = 'success') {
 
     toastMsg.textContent = message;
     toast.className = `toast ${type}`;
+    toastIcon.className = 'material-symbols-rounded toast-icon';
+    toastIcon.setAttribute('aria-hidden', 'true');
 
     if (type === 'success') {
-        toastIcon.className = 'fa-solid fa-circle-check toast-icon';
+        toastIcon.textContent = 'check_circle';
     } else if (type === 'danger') {
-        toastIcon.className = 'fa-solid fa-circle-xmark toast-icon';
+        toastIcon.textContent = 'cancel';
     } else {
-        toastIcon.className = 'fa-solid fa-circle-info toast-icon';
+        toastIcon.textContent = 'info';
     }
 
     toast.classList.remove('hidden');
