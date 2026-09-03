@@ -67,11 +67,21 @@ function getChartTheme() {
 }
 
 function initMaterialInteractions() {
-    const rippleTargets = document.querySelectorAll('.menu-item, .bottom-nav-item, .link-more');
+    const rippleTargets = document.querySelectorAll('button, .menu-item, .bottom-nav-item, .link-more');
     rippleTargets.forEach(target => {
-        if (!target.querySelector(':scope > md-ripple')) {
-            target.prepend(document.createElement('md-ripple'));
-        }
+        target.addEventListener('pointerdown', event => {
+            if (event.button !== 0) return;
+            const bounds = target.getBoundingClientRect();
+            const size = Math.max(bounds.width, bounds.height) * 2;
+            const ripple = document.createElement('span');
+            ripple.className = 'm3-ripple';
+            ripple.style.width = `${size}px`;
+            ripple.style.height = `${size}px`;
+            ripple.style.left = `${event.clientX - bounds.left - size / 2}px`;
+            ripple.style.top = `${event.clientY - bounds.top - size / 2}px`;
+            target.appendChild(ripple);
+            ripple.addEventListener('animationend', () => ripple.remove(), { once: true });
+        });
     });
 
     const theme = getChartTheme();
@@ -81,6 +91,17 @@ function initMaterialInteractions() {
     Chart.defaults.plugins.tooltip.backgroundColor = theme.inverseSurface;
     Chart.defaults.plugins.tooltip.titleColor = theme.inverseOnSurface;
     Chart.defaults.plugins.tooltip.bodyColor = theme.inverseOnSurface;
+}
+
+function createIcon(symbolId, className = 'icon') {
+    const svgNamespace = 'http://www.w3.org/2000/svg';
+    const icon = document.createElementNS(svgNamespace, 'svg');
+    const use = document.createElementNS(svgNamespace, 'use');
+    icon.setAttribute('class', className);
+    icon.setAttribute('aria-hidden', 'true');
+    use.setAttribute('href', `#icon-${symbolId}`);
+    icon.appendChild(use);
+    return icon;
 }
 
 // --- Generic demo data (actual spreadsheet values are never bundled in GitHub) ---
@@ -606,10 +627,7 @@ function renderDashboard() {
     }
     const updateDateEl = document.getElementById('assets-update-date');
     updateDateEl.replaceChildren();
-    const clockIcon = document.createElement('span');
-    clockIcon.className = 'material-symbols-rounded';
-    clockIcon.setAttribute('aria-hidden', 'true');
-    clockIcon.textContent = 'schedule';
+    const clockIcon = createIcon('clock');
     const updateText = document.createElement('span');
     updateText.textContent = selectedAsset ? formatAssetUpdateDate(selectedAsset.date) : '選択月の記録なし';
     updateDateEl.append(clockIcon, updateText);
@@ -1780,16 +1798,9 @@ function showToast(message, type = 'success') {
 
     toastMsg.textContent = message;
     toast.className = `toast ${type}`;
-    toastIcon.className = 'material-symbols-rounded toast-icon';
-    toastIcon.setAttribute('aria-hidden', 'true');
-
-    if (type === 'success') {
-        toastIcon.textContent = 'check_circle';
-    } else if (type === 'danger') {
-        toastIcon.textContent = 'cancel';
-    } else {
-        toastIcon.textContent = 'info';
-    }
+    toastIcon.setAttribute('class', 'icon toast-icon');
+    const iconName = type === 'success' ? 'check-circle' : type === 'danger' ? 'cancel' : 'info';
+    toastIcon.querySelector('use').setAttribute('href', `#icon-${iconName}`);
 
     toast.classList.remove('hidden');
 
