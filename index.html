@@ -4,41 +4,63 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MoneyManager - 個人向けスマート家計簿</title>
-    <!-- Material 3 typography and rounded symbols -->
+    <!-- Material 3 typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0..1,0&family=Noto+Sans+JP:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Material Web standard components -->
-    <script type="module" src="https://esm.run/@material/web/all.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <!-- Custom Style -->
-    <link rel="stylesheet" href="styles.css?v=3.0.0">
+    <link rel="stylesheet" href="styles.css?v=3.1.0">
 </head>
 <body>
+    <!-- Self-contained interface icons: reliable even when external icon fonts are blocked. -->
+    <svg class="icon-sprite" aria-hidden="true">
+        <symbol id="icon-wallet" viewBox="0 0 24 24"><path d="M3.5 6.5h15a2 2 0 0 1 2 2v10h-17zM3.5 6.5v-1a2 2 0 0 1 2-2h11v3m4 5h-5a2 2 0 0 0 0 4h5m-4-2h.01"/></symbol>
+        <symbol id="icon-dashboard" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9h-9zM14 3.2A9 9 0 0 1 20.8 10H14z"/></symbol>
+        <symbol id="icon-receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21zm3 5h6m-6 4h6m-6 4h4"/></symbol>
+        <symbol id="icon-add" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8m-4-4h8"/></symbol>
+        <symbol id="icon-tune" viewBox="0 0 24 24"><path d="M4 7h10m4 0h2M4 17h2m4 0h10M4 12h4m4 0h8"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/><circle cx="10" cy="12" r="2"/></symbol>
+        <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+        <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+        <symbol id="icon-sync" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5m10.2-3A8 8 0 0 0 5.4 6M4.8 15A8 8 0 0 0 18.6 18"/></symbol>
+        <symbol id="icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
+        <symbol id="icon-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18m-14 4h3m4 0h3m-10 4h3"/></symbol>
+        <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+        <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></symbol>
+        <symbol id="icon-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+        <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+        <symbol id="icon-calculator" viewBox="0 0 24 24"><rect x="5" y="2.5" width="14" height="19" rx="2"/><path d="M8 6h8v3H8zm0 7h.01m4 0h.01m4 0h.01M8 17h.01m4 0h.01m4 0h.01"/></symbol>
+        <symbol id="icon-lightbulb" viewBox="0 0 24 24"><path d="M9 18h6m-5 3h4m3-8.5c0 2-1 3-2 4H9c-1-1-2-2-2-4a5 5 0 1 1 10 0z"/></symbol>
+        <symbol id="icon-link" viewBox="0 0 24 24"><path d="m9.5 14.5 5-5m-7 8-1 1a3.5 3.5 0 0 1-5-5l3-3a3.5 3.5 0 0 1 5 0m7-4 1-1a3.5 3.5 0 0 1 5 5l-3 3a3.5 3.5 0 0 1-5 0"/></symbol>
+        <symbol id="icon-tag" viewBox="0 0 24 24"><path d="m20 13-7 7L4 11V4h7z"/><circle cx="8" cy="8" r="1"/></symbol>
+        <symbol id="icon-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10h.01"/></symbol>
+        <symbol id="icon-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16.5 8"/></symbol>
+        <symbol id="icon-cancel" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.5 8.5 7 7m0-7-7 7"/></symbol>
+    </svg>
     <div class="app-container">
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
             <div class="sidebar-brand">
-                <span class="material-symbols-rounded brand-icon" aria-hidden="true">account_balance_wallet</span>
+                <svg class="icon brand-icon" aria-hidden="true"><use href="#icon-wallet"></use></svg>
                 <span class="brand-text">MoneyManager</span>
             </div>
             
             <nav class="sidebar-menu">
                 <a href="#dashboard" class="menu-item active" data-tab="dashboard">
-                    <span class="material-symbols-rounded" aria-hidden="true">donut_large</span>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-dashboard"></use></svg>
                     <span>ダッシュボード</span>
                 </a>
                 <a href="#transactions" class="menu-item" data-tab="transactions">
-                    <span class="material-symbols-rounded" aria-hidden="true">receipt_long</span>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-receipt"></use></svg>
                     <span>明細・履歴</span>
                 </a>
                 <a href="#add-transaction" class="menu-item" data-tab="add-transaction">
-                    <span class="material-symbols-rounded" aria-hidden="true">add_circle</span>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-add"></use></svg>
                     <span>取引追加</span>
                 </a>
                 <a href="#settings" class="menu-item" data-tab="settings">
-                    <span class="material-symbols-rounded" aria-hidden="true">tune</span>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-tune"></use></svg>
                     <span>設定</span>
                 </a>
             </nav>
@@ -63,16 +85,16 @@
                 
                 <div class="header-actions">
                     <div class="month-selector">
-                        <md-icon-button class="btn-icon" id="prev-month" aria-label="前の月を表示"><md-icon>chevron_left</md-icon></md-icon-button>
+                        <button type="button" class="btn-icon" id="prev-month" aria-label="前の月を表示"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg></button>
                         <span id="current-month-display" aria-live="polite">—</span>
-                        <md-icon-button class="btn-icon" id="next-month" aria-label="次の月を表示"><md-icon>chevron_right</md-icon></md-icon-button>
+                        <button type="button" class="btn-icon" id="next-month" aria-label="次の月を表示"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg></button>
                     </div>
                     <div class="sync-action-wrapper">
-                        <md-filled-tonal-button class="btn btn-secondary" id="sync-button">
-                            <md-icon slot="icon">sync</md-icon><span>同期</span>
-                        </md-filled-tonal-button>
+                        <button type="button" class="btn btn-secondary" id="sync-button">
+                            <svg class="icon" aria-hidden="true"><use href="#icon-sync"></use></svg><span>同期</span>
+                        </button>
                         <div class="last-sync-time" id="assets-update-date">
-                            <span class="material-symbols-rounded" aria-hidden="true">schedule</span> <span>未同期</span>
+                            <svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg><span>未同期</span>
                         </div>
                     </div>
                 </div>
@@ -193,15 +215,15 @@
                         <h3>週次資産推移 (総資産・ポートフォリオ)</h3>
                         <div class="chart-toggles-wrapper">
                             <div class="chart-range-selector" role="group" aria-label="資産推移の表示期間">
-                                <button type="button" class="btn-range active" data-range="all" aria-pressed="true"><md-ripple></md-ripple>全期間</button>
-                                <button type="button" class="btn-range" data-range="1m" aria-pressed="false"><md-ripple></md-ripple>1ヶ月</button>
-                                <button type="button" class="btn-range" data-range="3m" aria-pressed="false"><md-ripple></md-ripple>3ヶ月</button>
-                                <button type="button" class="btn-range" data-range="6m" aria-pressed="false"><md-ripple></md-ripple>半年</button>
-                                <button type="button" class="btn-range" data-range="1y" aria-pressed="false"><md-ripple></md-ripple>1年</button>
+                                <button type="button" class="btn-range active" data-range="all" aria-pressed="true">全期間</button>
+                                <button type="button" class="btn-range" data-range="1m" aria-pressed="false">1ヶ月</button>
+                                <button type="button" class="btn-range" data-range="3m" aria-pressed="false">3ヶ月</button>
+                                <button type="button" class="btn-range" data-range="6m" aria-pressed="false">半年</button>
+                                <button type="button" class="btn-range" data-range="1y" aria-pressed="false">1年</button>
                             </div>
                             <div class="chart-toggles" role="group" aria-label="資産推移の表示内容">
-                                <button type="button" class="btn-toggle active" id="btn-toggle-total" aria-pressed="true"><md-ripple></md-ripple>総資産のみ</button>
-                                <button type="button" class="btn-toggle" id="btn-toggle-breakdown" aria-pressed="false"><md-ripple></md-ripple>内訳も表示</button>
+                                <button type="button" class="btn-toggle active" id="btn-toggle-total" aria-pressed="true">総資産のみ</button>
+                                <button type="button" class="btn-toggle" id="btn-toggle-breakdown" aria-pressed="false">内訳も表示</button>
                             </div>
                         </div>
                     </div>
@@ -214,7 +236,7 @@
                         <div class="hover-details-header">
                             <span class="hover-details-title">選択中の資産内訳</span>
                             <div class="hover-date-badge">
-                                <span class="material-symbols-rounded" aria-hidden="true">calendar_month</span> <span id="hover-date">-</span>
+                                <svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg><span id="hover-date">-</span>
                             </div>
                         </div>
                         <div class="details-grid">
@@ -267,7 +289,7 @@
                     <div class="detail-card recent-expenses">
                         <div class="detail-header">
                             <h3 id="recent-expenses-title">選択月の最近の支出</h3>
-                            <a href="#transactions" class="link-more" id="view-all-expenses">すべて見る <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+                            <a href="#transactions" class="link-more" id="view-all-expenses">すべて見る <svg class="icon" aria-hidden="true"><use href="#icon-arrow"></use></svg></a>
                         </div>
                         <div class="recent-list-wrapper">
                             <table class="recent-table">
@@ -313,16 +335,16 @@
             <!-- Tab: Transactions (Switchable Tabs for Expense/Income/Subs) -->
             <section id="tab-transactions" class="tab-pane">
                 <div class="sub-tab-navigation" role="group" aria-label="明細の種類">
-                    <button class="sub-tab-btn active" data-subtab="expense-list" aria-pressed="true"><md-ripple></md-ripple>支出明細</button>
-                    <button class="sub-tab-btn" data-subtab="income-list" aria-pressed="false"><md-ripple></md-ripple>収入明細</button>
-                    <button class="sub-tab-btn" data-subtab="sub-list" aria-pressed="false"><md-ripple></md-ripple>サブスク一覧</button>
+                    <button type="button" class="sub-tab-btn active" data-subtab="expense-list" aria-pressed="true">支出明細</button>
+                    <button type="button" class="sub-tab-btn" data-subtab="income-list" aria-pressed="false">収入明細</button>
+                    <button type="button" class="sub-tab-btn" data-subtab="sub-list" aria-pressed="false">サブスク一覧</button>
                 </div>
 
                 <!-- Sub-tab: Expenses -->
                 <div id="subtab-expense-list" class="sub-tab-pane active">
                     <div class="filter-bar">
                         <div class="search-input-wrapper">
-                            <span class="material-symbols-rounded search-icon" aria-hidden="true">search</span>
+                            <svg class="icon search-icon" aria-hidden="true"><use href="#icon-search"></use></svg>
                             <input type="text" id="expense-search" placeholder="備考、項目などで検索...">
                         </div>
                         <div class="filter-controls">
@@ -332,9 +354,9 @@
                                     <option value="all">すべて</option>
                                 </select>
                             </div>
-                            <md-outlined-button class="btn btn-outlined btn-small" id="reset-expense-filters">
-                                <md-icon slot="icon">close</md-icon>クリア
-                            </md-outlined-button>
+                            <button type="button" class="btn btn-outlined btn-small" id="reset-expense-filters">
+                                <svg class="icon" aria-hidden="true"><use href="#icon-close"></use></svg><span>クリア</span>
+                            </button>
                         </div>
                     </div>
 
@@ -420,8 +442,8 @@
                     <!-- Form Container -->
                     <div class="form-card">
                         <div class="form-header-toggle" role="group" aria-label="記録する取引の種類">
-                            <button class="toggle-form-btn active" id="form-select-expense" aria-pressed="true"><md-ripple></md-ripple>支出の記録</button>
-                            <button class="toggle-form-btn" id="form-select-income" aria-pressed="false"><md-ripple></md-ripple>収入の記録</button>
+                            <button type="button" class="toggle-form-btn active" id="form-select-expense" aria-pressed="true">支出の記録</button>
+                            <button type="button" class="toggle-form-btn" id="form-select-income" aria-pressed="false">収入の記録</button>
                         </div>
 
                         <!-- 1. Expense Form -->
@@ -456,9 +478,9 @@
                                 <input type="text" id="exp-desc" name="description" placeholder="店舗名、用途メモなど">
                             </div>
 
-                            <md-filled-button type="submit" class="btn btn-primary btn-block">
-                                <md-icon slot="icon">check</md-icon>支出を保存
-                            </md-filled-button>
+                            <button type="submit" class="btn btn-primary btn-block">
+                                <svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg><span>支出を保存</span>
+                            </button>
                         </form>
 
                         <!-- 2. Income Form (Hidden by default) -->
@@ -503,9 +525,9 @@
                                     <label for="inc-social" class="required">社会保険料 (円)</label>
                                     <div class="input-with-button">
                                         <input type="number" id="inc-social" name="socialInsurance" value="0" min="0" required class="form-input">
-                                        <md-filled-tonal-icon-button class="btn btn-secondary btn-icon-only" id="btn-open-calc" title="電卓を開く" aria-label="電卓を開く">
-                                            <md-icon>calculate</md-icon>
-                                        </md-filled-tonal-icon-button>
+                                        <button type="button" class="btn btn-secondary btn-icon-only" id="btn-open-calc" title="電卓を開く" aria-label="電卓を開く">
+                                            <svg class="icon" aria-hidden="true"><use href="#icon-calculator"></use></svg>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -533,9 +555,9 @@
                                 </div>
                             </div>
 
-                            <md-filled-button type="submit" class="btn btn-primary btn-block">
-                                <md-icon slot="icon">check</md-icon>収入を保存
-                            </md-filled-button>
+                            <button type="submit" class="btn btn-primary btn-block">
+                                <svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg><span>収入を保存</span>
+                            </button>
                         </form>
                     </div>
 
@@ -552,7 +574,7 @@
                         </div>
                         
                         <div class="shortcut-tip">
-                            <div class="tip-icon"><span class="material-symbols-rounded" aria-hidden="true">lightbulb</span></div>
+                            <div class="tip-icon"><svg class="icon" aria-hidden="true"><use href="#icon-lightbulb"></use></svg></div>
                             <div class="tip-text">その他控除はデフォルトで「2,260円」がセットされていますが、必要に応じて変更可能です。</div>
                         </div>
                     </div>
@@ -564,7 +586,7 @@
                 <div class="settings-grid">
                     <!-- GAS Integration -->
                     <div class="settings-card">
-                        <h3><span class="material-symbols-rounded" aria-hidden="true">link</span> Googleスプレッドシート連携</h3>
+                        <h3><svg class="icon" aria-hidden="true"><use href="#icon-link"></use></svg> Googleスプレッドシート連携</h3>
                         <p class="settings-desc">デプロイしたGoogle Apps Script (GAS) のWebアプリケーションURLを入力して、スプレッドシートとデータを同期させます。</p>
                         
                         <div class="settings-form">
@@ -574,15 +596,15 @@
                             </div>
                             
                             <div class="settings-actions">
-                                <md-filled-button class="btn btn-primary" id="save-gas-url">接続を保存してテスト</md-filled-button>
-                                <md-filled-button class="btn btn-danger hidden" id="disconnect-gas">接続解除</md-filled-button>
+                                <button type="button" class="btn btn-primary" id="save-gas-url">接続を保存してテスト</button>
+                                <button type="button" class="btn btn-danger hidden" id="disconnect-gas">接続解除</button>
                             </div>
                         </div>
                     </div>
 
                     <!-- Category Management -->
                     <div class="settings-card">
-                        <h3><span class="material-symbols-rounded" aria-hidden="true">sell</span> 支出項目カテゴリ管理</h3>
+                        <h3><svg class="icon" aria-hidden="true"><use href="#icon-tag"></use></svg> 支出項目カテゴリ管理</h3>
                         <p class="settings-desc">支出記録で使用する項目カテゴリを編集します。カンマ区切りで入力してください。</p>
                         
                         <div class="form-group">
@@ -591,7 +613,7 @@
                         </div>
                         
                         <div class="settings-actions">
-                            <md-filled-tonal-button class="btn btn-secondary" id="save-categories">カテゴリを保存</md-filled-tonal-button>
+                            <button type="button" class="btn btn-secondary" id="save-categories">カテゴリを保存</button>
                         </div>
                     </div>
                 </div>
@@ -604,7 +626,7 @@
         <div class="modal-card">
             <div class="modal-header">
                 <h3 id="calc-modal-title">社会保険料 簡易計算器</h3>
-                <md-icon-button class="modal-close-btn" id="btn-close-calc" aria-label="計算画面を閉じる"><md-icon>close</md-icon></md-icon-button>
+                <button type="button" class="btn-icon modal-close-btn" id="btn-close-calc" aria-label="計算画面を閉じる"><svg class="icon" aria-hidden="true"><use href="#icon-close"></use></svg></button>
             </div>
             <div class="modal-body">
                 <p class="modal-desc">内訳を入力して社会保険料の合計を算出します。</p>
@@ -635,39 +657,39 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <md-outlined-button class="btn btn-outlined" id="btn-cancel-calc">キャンセル</md-outlined-button>
-                <md-filled-button class="btn btn-primary" id="btn-apply-calc">計算結果を挿入</md-filled-button>
+                <button type="button" class="btn btn-outlined" id="btn-cancel-calc">キャンセル</button>
+                <button type="button" class="btn btn-primary" id="btn-apply-calc">計算結果を挿入</button>
             </div>
         </div>
     </div>
 
     <!-- Notification Toast -->
     <div id="toast" class="toast hidden">
-        <span class="material-symbols-rounded toast-icon" aria-hidden="true">info</span>
+        <svg class="icon toast-icon" aria-hidden="true"><use href="#icon-info"></use></svg>
         <span class="toast-message">メッセージ</span>
     </div>
 
     <!-- Mobile Bottom Navigation -->
     <nav class="bottom-nav">
         <a href="#dashboard" class="bottom-nav-item active" data-tab="dashboard">
-            <span class="material-symbols-rounded" aria-hidden="true">donut_large</span>
+            <span class="bottom-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-dashboard"></use></svg></span>
             <span>ダッシュボード</span>
         </a>
         <a href="#transactions" class="bottom-nav-item" data-tab="transactions">
-            <span class="material-symbols-rounded" aria-hidden="true">receipt_long</span>
+            <span class="bottom-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-receipt"></use></svg></span>
             <span>明細</span>
         </a>
         <a href="#add-transaction" class="bottom-nav-item" data-tab="add-transaction">
-            <span class="material-symbols-rounded" aria-hidden="true">add_circle</span>
+            <span class="bottom-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-add"></use></svg></span>
             <span>追加</span>
         </a>
         <a href="#settings" class="bottom-nav-item" data-tab="settings">
-            <span class="material-symbols-rounded" aria-hidden="true">tune</span>
+            <span class="bottom-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-tune"></use></svg></span>
             <span>設定</span>
         </a>
     </nav>
 
     <!-- Script File -->
-    <script src="app.js?v=3.0.0"></script>
+    <script src="app.js?v=3.1.0"></script>
 </body>
 </html>
