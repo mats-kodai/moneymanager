@@ -6,6 +6,11 @@ const initialMonth = new Date();
 initialMonth.setDate(1);
 initialMonth.setHours(0, 0, 0, 0);
 
+const DATA_CACHE_KEY = 'moneymanager_api_cache_v1';
+const DATA_CACHE_VERSION = 1;
+const DATA_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const API_DATA_FIELDS = ['assets', 'incomes', 'expenses', 'subscriptions', 'annualBudgets', 'itemBudgets', 'assetTargets'];
+
 // --- App State ---
 const state = {
     gasUrl: localStorage.getItem('kakeibo_gas_url') || '',
@@ -21,7 +26,8 @@ const state = {
     currentMonth: initialMonth,
     showAssetsBreakdown: false, // 資産の内訳表示フラグ
     assetRange: 'all',          // 資産グラフの表示期間 ('all', '1m', '3m', '6m', '1y')
-    isDemoMode: true
+    isDemoMode: true,
+    syncState: 'idle'
 };
 
 // Material 3 roles are the single source of truth for canvas and DOM colors.
@@ -170,9 +176,10 @@ document.addEventListener('DOMContentLoaded', () => {
     initCalculatorModal();
     initSettings();
 
-    // GAS URLがある場合は自動ロードを試みる、なければデモモードで起動
+    // キャッシュがあれば即時表示し、最新データは常にバックグラウンドで取得する。
     if (state.gasUrl) {
-        syncWithGas();
+        const restoredFromCache = loadApiDataCache();
+        void syncWithGas({ background: restoredFromCache, silent: restoredFromCache });
     } else {
         loadDemoMode();
     }
@@ -290,7 +297,7 @@ function updateHeaderInfo(tabId) {
     
     switch (tabId) {
         case 'dashboard':
-            titleEl.textContent = 'ダッシュボード';
+            titleEl.textContent = 'MoneyManager';
             subtitleEl.textContent = '家計と資産の状況をリアルタイムに把握します。';
             break;
         case 'transactions':
@@ -352,6 +359,7 @@ function refreshActiveViews() {
         const activeSubtab = document.querySelector('.sub-tab-btn.active').getAttribute('data-subtab');
         if (activeSubtab === 'expense-list') renderExpensesList();
         else if (activeSubtab === 'income-list') renderIncomesList();
+        else if (activeSubtab === 'sub-list') renderSubscriptionsList();
     }
 }
 
@@ -375,8 +383,16 @@ function updateConnectionStatusUI() {
         disconnectBtn.classList.add('hidden');
     } else {
         dot.className = 'status-dot success';
-        text.textContent = 'スプレッドシート同期中';
-        desc.textContent = '家計・予算・資産目標の7シートを同期しています。';
+        if (state.syncState === 'syncing') {
+            text.textContent = '最新データを確認中';
+            desc.textContent = '保存済みデータを表示したまま、裏側で7シートを同期しています。';
+        } else if (state.syncState === 'cached' || state.syncState === 'offline') {
+            text.textContent = '保存済みデータを表示中';
+            desc.textContent = '前回同期したデータです。接続が戻り次第、最新データへ更新します。';
+        } else {
+            text.textContent = 'スプレッドシート同期済み';
+            desc.textContent = '家計・予算・資産目標の7シートを表示しています。';
+        }
         disconnectBtn.classList.remove('hidden');
     }
 }
@@ -391,9 +407,72 @@ function applyApiData(data) {
     state.assetTargets = data.assetTargets || [];
 }
 
-async function syncWithGas() {
+function getApiDataSnapshot() {
+    return Object.fromEntries(API_DATA_FIELDS.map(field => [field, state[field]]));
+}
+
+function saveApiDataCache() {
+    try {
+        localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({
+            version: DATA_CACHE_VERSION,
+            sourceUrl: state.gasUrl,
+            savedAt: Date.now(),
+            data: getApiDataSnapshot()
+        }));
+    } catch (error) {
+        console.warn('Cache Save Error:', error);
+    }
+}
+
+function clearApiDataCache() {
+    localStorage.removeItem(DATA_CACHE_KEY);
+}
+
+function loadApiDataCache() {
+    try {
+        const rawCache = localStorage.getItem(DATA_CACHE_KEY);
+        if (!rawCache) return false;
+
+        const cache = JSON.parse(rawCache);
+        const isValid = cache.version === DATA_CACHE_VERSION
+            && cache.sourceUrl === state.gasUrl
+            && Number.isFinite(cache.savedAt)
+            && Date.now() - cache.savedAt <= DATA_CACHE_TTL_MS
+            && cache.data
+            && API_DATA_FIELDS.every(field => Array.isArray(cache.data[field]));
+
+        if (!isValid) {
+            clearApiDataCache();
+            return false;
+        }
+
+        applyApiData(cache.data);
+        state.isDemoMode = false;
+        state.syncState = 'cached';
+        updateConnectionStatusUI();
+        renderDashboard();
+        return true;
+    } catch (error) {
+        console.warn('Cache Load Error:', error);
+        clearApiDataCache();
+        return false;
+    }
+}
+
+function refreshSyncedViews() {
+    renderDashboard();
+    if (document.getElementById('tab-transactions').classList.contains('active')) {
+        refreshActiveViews();
+    }
+}
+
+async function syncWithGas({ background = false, silent = false } = {}) {
     if (!state.gasUrl) return;
-    showLoading(true);
+    if (!background) showLoading(true);
+    if (!state.isDemoMode) {
+        state.syncState = 'syncing';
+        updateConnectionStatusUI();
+    }
 
     try {
         const apiUrl = state.gasUrl + (state.gasUrl.includes('?') ? '&' : '?') + 'api=1';
@@ -406,23 +485,32 @@ async function syncWithGas() {
             applyApiData(data);
 
             state.isDemoMode = false;
+            state.syncState = 'synced';
+            saveApiDataCache();
             updateConnectionStatusUI();
-            renderDashboard();
-            showToast('スプレッドシートとデータを同期しました！', 'success');
+            refreshSyncedViews();
+            if (!silent) showToast('スプレッドシートとデータを同期しました！', 'success');
         } else {
             throw new Error(data.message || 'データパースエラー');
         }
     } catch (error) {
         console.error('Sync Error:', error);
-        showToast('同期に失敗しました。URLとシートの共有設定を確認してください。', 'danger');
-        loadDemoMode();
+        if (background && !state.isDemoMode) {
+            state.syncState = 'offline';
+            updateConnectionStatusUI();
+            if (!silent) showToast('同期できなかったため、保存済みデータを表示しています。', 'warning');
+        } else {
+            showToast('同期に失敗しました。URLとシートの共有設定を確認してください。', 'danger');
+            loadDemoMode();
+        }
     } finally {
-        showLoading(false);
+        if (!background) showLoading(false);
     }
 }
 
 function loadDemoMode() {
     state.isDemoMode = true;
+    state.syncState = 'idle';
     updateConnectionStatusUI();
 
     // v2キーに分離し、旧デモデータや実データ風サンプルを公開画面へ持ち越さない
@@ -1245,24 +1333,46 @@ function renderExpensesList() {
         return matchSearch && matchCat;
     });
 
-    const tbody = document.getElementById('expense-table-tbody');
-    tbody.innerHTML = '';
+    const list = document.getElementById('expense-list');
+    list.innerHTML = '';
     document.getElementById('expense-count').textContent = `選択月の支出明細: 全 ${displayList.length} 件`;
 
     if (displayList.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">条件に該当する支出明細はありません。</td></tr>';
+        list.innerHTML = '<div class="expense-ledger-empty">条件に該当する支出明細はありません。</div>';
         return;
     }
 
-    displayList.forEach(exp => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${escapeHtml(formatDayAndWeek(exp.date))}</td>
-            <td><span class="badge">${escapeHtml(exp.category)}</span></td>
-            <td>${escapeHtml(exp.description || '---')}</td>
-            <td class="text-right text-danger font-bold">-${formatCurrency(exp.amount)}</td>
-        `;
-        tbody.appendChild(row);
+    const sortedExpenses = [...displayList].sort((a, b) => safeParseDate(b.date) - safeParseDate(a.date));
+    const groupedExpenses = new Map();
+
+    sortedExpenses.forEach(expense => {
+        const parsedDate = safeParseDate(expense.date);
+        const dateKey = parsedDate.getTime() === 0
+            ? String(expense.date || '日付不明')
+            : `${parsedDate.getFullYear()}-${parsedDate.getMonth()}-${parsedDate.getDate()}`;
+        if (!groupedExpenses.has(dateKey)) groupedExpenses.set(dateKey, []);
+        groupedExpenses.get(dateKey).push(expense);
+    });
+
+    groupedExpenses.forEach(expenses => {
+        const group = document.createElement('section');
+        group.className = 'expense-date-group';
+        group.innerHTML = `<h3 class="expense-date-label">${escapeHtml(formatFullDateAndWeek(expenses[0].date))}</h3>`;
+
+        expenses.forEach(expense => {
+            const entry = document.createElement('article');
+            entry.className = 'expense-entry';
+            entry.innerHTML = `
+                <div class="expense-entry-main">
+                    <span class="expense-entry-category">${escapeHtml(expense.category || '項目なし')}</span>
+                    <strong class="expense-entry-amount">-${formatCurrency(Number(expense.amount) || 0)}</strong>
+                </div>
+                <p class="expense-entry-note">${escapeHtml(expense.description || '備考なし')}</p>
+            `;
+            group.appendChild(entry);
+        });
+
+        list.appendChild(group);
     });
 }
 
@@ -1306,16 +1416,16 @@ function renderIncomesList() {
 
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td><strong>${escapeHtml(monthDisplay)}</strong></td>
-            <td><span class="badge-type income">${escapeHtml(inc.incomeType)}</span></td>
-            <td>${formatCurrency(inc.grossPay)}</td>
-            <td class="text-muted">${formatCurrency(inc.incomeTax)}</td>
-            <td class="text-muted">${formatCurrency(inc.inhabitantTax)}</td>
-            <td class="text-muted">${formatCurrency(inc.socialInsurance)}</td>
-            <td class="text-muted">${formatCurrency(inc.otherDeductions)}</td>
-            <td class="text-danger">${formatCurrency(inc.deductionTotal)}</td>
-            <td>${formatCurrency(inc.transportation)}</td>
-            <td class="text-right text-success font-bold">${formatCurrency(inc.takeHomePay)}</td>
+            <td data-label="年月"><strong>${escapeHtml(monthDisplay)}</strong></td>
+            <td data-label="収入区分"><span class="badge-type income">${escapeHtml(inc.incomeType)}</span></td>
+            <td data-label="総支給額">${formatCurrency(inc.grossPay)}</td>
+            <td data-label="所得税" class="text-muted">${formatCurrency(inc.incomeTax)}</td>
+            <td data-label="住民税" class="text-muted">${formatCurrency(inc.inhabitantTax)}</td>
+            <td data-label="社会保険料" class="text-muted">${formatCurrency(inc.socialInsurance)}</td>
+            <td data-label="その他控除" class="text-muted">${formatCurrency(inc.otherDeductions)}</td>
+            <td data-label="控除合計" class="text-danger">${formatCurrency(inc.deductionTotal)}</td>
+            <td data-label="交通費">${formatCurrency(inc.transportation)}</td>
+            <td data-label="手取り" class="text-right text-success font-bold">${formatCurrency(inc.takeHomePay)}</td>
         `;
         tbody.appendChild(row);
     });
@@ -1334,12 +1444,12 @@ function renderSubscriptionsList() {
     state.subscriptions.forEach(sub => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${sub.year}年</td>
-            <td><strong>${escapeHtml(sub.name)}</strong></td>
-            <td>${formatCurrency(sub.amount)}</td>
-            <td>年 ${sub.paymentCount} 回</td>
-            <td>${formatCurrency(sub.annualAmount)}</td>
-            <td class="text-right font-bold text-primary">${formatCurrency(sub.monthlyAmount)} /月</td>
+            <td data-label="年">${sub.year}年</td>
+            <td data-label="媒体名"><strong>${escapeHtml(sub.name)}</strong></td>
+            <td data-label="支出金額">${formatCurrency(sub.amount)}</td>
+            <td data-label="支払回数">年 ${sub.paymentCount} 回</td>
+            <td data-label="年間支払額">${formatCurrency(sub.annualAmount)}</td>
+            <td data-label="月当たり" class="text-right font-bold text-primary">${formatCurrency(sub.monthlyAmount)} /月</td>
         `;
         tbody.appendChild(row);
     });
@@ -1447,8 +1557,8 @@ function initFormLogic() {
 
                 if (data.status === 'success') {
                     showToast('スプレッドシートに支出を追記しました！', 'success');
-                    await syncWithGas();
                     onTransactionSaved();
+                    void syncWithGas({ background: true, silent: true });
                 } else {
                     throw new Error(data.message || "スプレッドシートへの保存に失敗しました。");
                 }
@@ -1527,8 +1637,8 @@ function initFormLogic() {
 
                 if (data.status === 'success') {
                     showToast('スプレッドシートに収入を追記しました！', 'success');
-                    await syncWithGas();
                     onTransactionSaved();
+                    void syncWithGas({ background: true, silent: true });
                 } else {
                     throw new Error(data.message || "スプレッドシートへの保存に失敗しました。");
                 }
@@ -1684,8 +1794,10 @@ function initSettings() {
                 state.gasUrl = url;
                 localStorage.setItem('kakeibo_gas_url', url);
                 state.isDemoMode = false;
+                state.syncState = 'synced';
                 
                 applyApiData(data);
+                saveApiDataCache();
 
                 updateConnectionStatusUI();
                 renderDashboard();
@@ -1705,6 +1817,7 @@ function initSettings() {
         if (confirm('スプレッドシート連携を解除し、デモモードに戻しますか？')) {
             state.gasUrl = '';
             localStorage.removeItem('kakeibo_gas_url');
+            clearApiDataCache();
             loadDemoMode();
             document.getElementById('gas-url').value = '';
             showToast('連携を解除しました。', 'success');
@@ -1818,4 +1931,14 @@ function formatDayAndWeek(dateStr) {
     const day = String(dateObj.getDate()).padStart(2, '0');
     const dayOfWeek = ["日", "月", "火", "水", "木", "金", "土"][dateObj.getDay()];
     return `${day}日 (${dayOfWeek})`;
+}
+
+// 日付グループ見出し用（例: "2026/09/04" -> "2026年9月4日（金）"）
+function formatFullDateAndWeek(dateStr) {
+    if (!dateStr) return '日付不明';
+    const dateObj = safeParseDate(dateStr);
+    if (dateObj.getTime() === 0) return String(dateStr);
+
+    const dayOfWeek = ["日", "月", "火", "水", "木", "金", "土"][dateObj.getDay()];
+    return `${dateObj.getFullYear()}年${dateObj.getMonth() + 1}月${dateObj.getDate()}日（${dayOfWeek}）`;
 }
