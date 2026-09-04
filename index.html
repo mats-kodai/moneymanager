@@ -11,7 +11,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <!-- Custom Style -->
-    <link rel="stylesheet" href="styles.css?v=3.1.0">
+    <link rel="stylesheet" href="styles.css?v=3.2.0">
 </head>
 <body>
     <!-- Self-contained interface icons: reliable even when external icon fonts are blocked. -->
@@ -79,7 +79,7 @@
             <!-- Top Navbar -->
             <header class="top-navbar">
                 <div class="page-title-section">
-                    <h1 id="page-title">ダッシュボード</h1>
+                    <h1 id="page-title">MoneyManager</h1>
                     <p class="subtitle" id="page-subtitle">家計と資産の状況をリアルタイムに把握します。</p>
                 </div>
                 
@@ -360,21 +360,9 @@
                         </div>
                     </div>
 
-                    <div class="transactions-table-card">
-                        <div class="table-wrapper">
-                            <table class="main-table">
-                                <thead>
-                                    <tr>
-                                        <th>日付</th>
-                                        <th>項目</th>
-                                        <th>備考</th>
-                                        <th class="text-right">金額</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="expense-table-tbody">
-                                    <!-- JS -->
-                                </tbody>
-                            </table>
+                    <div class="transactions-table-card expense-ledger-card">
+                        <div id="expense-list" class="expense-ledger" aria-live="polite">
+                            <!-- JS -->
                         </div>
                         <div class="table-footer">
                             <span id="expense-count">全 0 件の支出</span>
@@ -385,8 +373,8 @@
                 <!-- Sub-tab: Incomes -->
                 <div id="subtab-income-list" class="sub-tab-pane">
                     <div class="transactions-table-card">
-                        <div class="table-wrapper">
-                            <table class="main-table">
+                        <div class="table-wrapper responsive-table-wrapper">
+                            <table class="main-table responsive-detail-table">
                                 <thead>
                                     <tr>
                                         <th>年月</th>
@@ -415,8 +403,8 @@
                 <!-- Sub-tab: Subscriptions -->
                 <div id="subtab-sub-list" class="sub-tab-pane">
                     <div class="transactions-table-card">
-                        <div class="table-wrapper">
-                            <table class="main-table">
+                        <div class="table-wrapper responsive-table-wrapper">
+                            <table class="main-table responsive-detail-table">
                                 <thead>
                                     <tr>
                                         <th>年</th>
@@ -690,6 +678,6 @@
     </nav>
 
     <!-- Script File -->
-    <script src="app.js?v=3.1.0"></script>
+    <script src="app.js?v=3.2.0"></script>
 </body>
 </html>
