@@ -11,7 +11,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <!-- Custom Style -->
-    <link rel="stylesheet" href="styles.css?v=4.0.0">
+    <link rel="stylesheet" href="styles.css?v=4.1.0">
 </head>
 <body>
     <!-- Self-contained interface icons: reliable even when external icon fonts are blocked. -->
@@ -44,7 +44,10 @@
             <!-- Top Navbar -->
             <header class="top-navbar">
                 <div class="page-title-section">
-                    <h1 id="page-title">MoneyManager</h1>
+                    <div class="page-title-row">
+                        <h1 id="page-title">MoneyManager</h1>
+                        <span class="demo-badge hidden" id="demo-badge">デモ版</span>
+                    </div>
                     <p class="subtitle hidden" id="page-subtitle"></p>
                 </div>
                 
@@ -111,7 +114,7 @@
                         </div>
                         <div class="card-value" id="monthly-balance">¥0</div>
                         <div class="card-trend" id="balance-trend">
-                            <span>前月同日比: ¥0</span>
+                            <span>前月比: ¥0</span>
                         </div>
                     </div>
 
@@ -546,26 +549,19 @@
         <div class="header-menu-actions">
             <button type="button" class="header-menu-item" id="sync-button">
                 <span class="header-menu-item-icon"><svg class="icon" aria-hidden="true"><use href="#icon-sync"></use></svg></span>
-                <span class="header-menu-item-copy"><strong>同期</strong><small>最新データを今すぐ取得</small></span>
+                <span class="header-menu-item-copy"><strong>同期</strong><small id="last-sync-text">最終更新: 未同期</small></span>
                 <svg class="icon header-menu-arrow" aria-hidden="true"><use href="#icon-arrow"></use></svg>
             </button>
             <button type="button" class="header-menu-item" data-tab="budget">
                 <span class="header-menu-item-icon"><svg class="icon" aria-hidden="true"><use href="#icon-target"></use></svg></span>
-                <span class="header-menu-item-copy"><strong>予算と資産目標</strong><small>月間・年度予算と年末目標</small></span>
+                <span class="header-menu-item-copy"><strong>予算と資産目標</strong></span>
                 <svg class="icon header-menu-arrow" aria-hidden="true"><use href="#icon-arrow"></use></svg>
             </button>
             <button type="button" class="header-menu-item" data-tab="settings">
                 <span class="header-menu-item-icon"><svg class="icon" aria-hidden="true"><use href="#icon-tune"></use></svg></span>
-                <span class="header-menu-item-copy"><strong>設定</strong><small>スプレッドシート連携とカテゴリ</small></span>
+                <span class="header-menu-item-copy"><strong>設定</strong></span>
                 <svg class="icon header-menu-arrow" aria-hidden="true"><use href="#icon-arrow"></use></svg>
             </button>
-        </div>
-        <div class="menu-status-card">
-            <div class="status-indicator" id="connection-status">
-                <span class="status-dot warning"></span>
-                <span class="status-text">デモモード動作中</span>
-            </div>
-            <p class="status-desc" id="status-desc">GASのURLを設定するとスプレッドシートと同期します。</p>
         </div>
     </aside>
 
@@ -634,6 +630,6 @@
     </nav>
 
     <!-- Script File -->
-    <script src="app.js?v=4.0.0"></script>
+    <script src="app.js?v=4.1.0"></script>
 </body>
 </html>

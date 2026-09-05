@@ -73,7 +73,7 @@ function doGet(e) {
       if (!row[1]) continue;
       expenses.push({
         id: i,
-        yearMonth: String(row[0]),
+        yearMonth: formatYearMonth(row[1]),
         date: formatDate(row[1]),
         category: String(row[2] || ""),
         amount: Number(row[3] || 0),
@@ -262,6 +262,15 @@ function formatDate(dateVal) {
     return `${year}/${month}/${day}`;
   }
   return String(dateVal || "");
+}
+
+function formatYearMonth(dateVal) {
+  if (dateVal instanceof Date && !isNaN(dateVal.getTime())) {
+    return `${dateVal.getFullYear()}/${dateVal.getMonth() + 1}`;
+  }
+
+  const match = String(dateVal || "").trim().match(/^(\d{4})[年/\-](\d{1,2})/);
+  return match ? `${match[1]}/${Number(match[2])}` : "";
 }
 
 function initializeSheets(ss) {

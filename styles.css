@@ -161,12 +161,6 @@ a { color: inherit; }
     to { opacity: 0; transform: scale(1); }
 }
 
-.status-indicator { display: flex; align-items: center; gap: 8px; font-size: .875rem; font-weight: 600; }
-.status-dot { width: 10px; height: 10px; flex: 0 0 auto; border-radius: 50%; background: var(--md-sys-color-outline); }
-.status-dot.warning { background: var(--md-sys-color-on-tertiary-container); }
-.status-dot.success { background: var(--md-sys-color-primary); }
-.status-desc { margin: 8px 0 0; font-size: .75rem; line-height: 1.55; }
-
 /* Main header and Material buttons */
 .main-content {
     width: 100%;
@@ -191,13 +185,26 @@ a { color: inherit; }
 }
 
 .page-title-section { min-width: 0; }
+.page-title-row { display: flex; align-items: center; gap: 10px; }
 .page-title-section h1 {
-    margin-bottom: 4px;
+    margin: 0 0 4px;
     font-family: var(--md-ref-typeface-brand);
     font-size: clamp(1.75rem, 2.4vw, 2.25rem);
     font-weight: 500;
     line-height: 1.2;
     letter-spacing: -.025em;
+}
+.demo-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    background: var(--md-sys-color-tertiary-container);
+    color: var(--md-sys-color-on-tertiary-container);
+    border-radius: var(--md-sys-shape-corner-full);
+    font-size: .75rem;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
 }
 .subtitle { margin: 0; color: var(--md-sys-color-on-surface-variant); font-size: .875rem; }
 .header-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 12px; }
@@ -334,7 +341,6 @@ a { color: inherit; }
 .header-menu-item-copy strong { font-size: .9375rem; }
 .header-menu-item-copy small { color: var(--md-sys-color-on-surface-variant); font-size: .75rem; }
 .header-menu-arrow { width: 20px; height: 20px; color: var(--md-sys-color-on-surface-variant); }
-.menu-status-card { margin-top: 16px; padding: 16px; background: var(--md-sys-color-surface-container); color: var(--md-sys-color-on-surface-variant); border-radius: var(--md-sys-shape-corner-large); }
 body.menu-open { overflow: hidden; }
 
 @keyframes menu-enter {

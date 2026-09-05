@@ -27,7 +27,8 @@ const state = {
     showAssetsBreakdown: false, // 資産の内訳表示フラグ
     assetRange: 'all',          // 資産グラフの表示期間 ('all', '1m', '3m', '6m', '1y')
     isDemoMode: true,
-    syncState: 'idle'
+    syncState: 'idle',
+    lastSyncedAt: null
 };
 
 // Material 3 roles are the single source of truth for canvas and DOM colors.
@@ -441,30 +442,25 @@ function showLoading(show) {
 }
 
 function updateConnectionStatusUI() {
-    const dot = document.querySelector('#connection-status .status-dot');
-    const text = document.querySelector('#connection-status .status-text');
-    const desc = document.getElementById('status-desc');
+    const demoBadge = document.getElementById('demo-badge');
+    const lastSyncText = document.getElementById('last-sync-text');
     const disconnectBtn = document.getElementById('disconnect-gas');
 
-    if (state.isDemoMode) {
-        dot.className = 'status-dot warning';
-        text.textContent = 'デモモード動作中';
-        desc.textContent = 'GASのURLを設定するとスプレッドシートと同期します。';
-        disconnectBtn.classList.add('hidden');
-    } else {
-        dot.className = 'status-dot success';
-        if (state.syncState === 'syncing') {
-            text.textContent = '最新データを確認中';
-            desc.textContent = '保存済みデータを表示したまま、裏側で7シートを同期しています。';
-        } else if (state.syncState === 'cached' || state.syncState === 'offline') {
-            text.textContent = '保存済みデータを表示中';
-            desc.textContent = '前回同期したデータです。接続が戻り次第、最新データへ更新します。';
-        } else {
-            text.textContent = 'スプレッドシート同期済み';
-            desc.textContent = '家計・予算・資産目標の7シートを表示しています。';
-        }
-        disconnectBtn.classList.remove('hidden');
-    }
+    demoBadge.classList.toggle('hidden', !state.isDemoMode);
+    lastSyncText.textContent = formatLastSyncText(state.lastSyncedAt);
+    disconnectBtn.classList.toggle('hidden', state.isDemoMode);
+}
+
+function formatLastSyncText(timestamp) {
+    if (!Number.isFinite(timestamp)) return '最終更新: 未同期';
+    const formatted = new Intl.DateTimeFormat('ja-JP', {
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).format(new Date(timestamp));
+    return `最終更新: ${formatted}`;
 }
 
 function applyApiData(data) {
@@ -483,10 +479,11 @@ function getApiDataSnapshot() {
 
 function saveApiDataCache() {
     try {
+        const savedAt = Number.isFinite(state.lastSyncedAt) ? state.lastSyncedAt : Date.now();
         localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({
             version: DATA_CACHE_VERSION,
             sourceUrl: state.gasUrl,
-            savedAt: Date.now(),
+            savedAt,
             data: getApiDataSnapshot()
         }));
     } catch (error) {
@@ -519,6 +516,7 @@ function loadApiDataCache() {
         applyApiData(cache.data);
         state.isDemoMode = false;
         state.syncState = 'cached';
+        state.lastSyncedAt = cache.savedAt;
         updateConnectionStatusUI();
         renderDashboard();
         return true;
@@ -553,6 +551,7 @@ async function syncWithGas({ background = false, silent = false } = {}) {
 
             state.isDemoMode = false;
             state.syncState = 'synced';
+            state.lastSyncedAt = Date.now();
             saveApiDataCache();
             updateConnectionStatusUI();
             refreshSyncedViews();
@@ -578,6 +577,7 @@ async function syncWithGas({ background = false, silent = false } = {}) {
 function loadDemoMode() {
     state.isDemoMode = true;
     state.syncState = 'idle';
+    state.lastSyncedAt = null;
     updateConnectionStatusUI();
 
     // v2キーに分離し、旧デモデータや実データ風サンプルを公開画面へ持ち越さない
@@ -758,9 +758,6 @@ function renderBudgetView() {
 // --- Dashboard Render Logic ---
 function renderDashboard() {
     const totalSubsMonthly = state.subscriptions.reduce((sum, sub) => sum + Number(sub.monthlyAmount || 0), 0);
-    const today = new Date();
-    const isCurrentMonth = today.getFullYear() === state.currentMonth.getFullYear() && today.getMonth() === state.currentMonth.getMonth();
-    const targetDay = isCurrentMonth ? today.getDate() : new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() + 1, 0).getDate();
     const prevMonthDate = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() - 1, 1);
     const currentIncomes = filterIncomesByMonth(state.incomes, state.currentMonth);
     const prevIncomes = filterIncomesByMonth(state.incomes, prevMonthDate);
@@ -768,11 +765,8 @@ function renderDashboard() {
     const prevTotalIncome = prevIncomes.reduce((sum, income) => sum + Number(income.takeHomePay || 0), 0);
     const currentExpenses = filterExpensesByMonth(state.expenses, state.currentMonth);
     const prevExpenses = filterExpensesByMonth(state.expenses, prevMonthDate);
-    const currentExpensesToDay = currentExpenses.filter(expense => safeParseDate(expense.date).getDate() <= targetDay);
-    const prevExpensesToDay = prevExpenses.filter(expense => safeParseDate(expense.date).getDate() <= targetDay);
-    const totalExpenses = currentExpensesToDay.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) + totalSubsMonthly;
-    const prevTotalExpenses = prevExpensesToDay.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) + totalSubsMonthly;
-    const allExpensesTotal = currentExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) + totalSubsMonthly;
+    const totalExpenses = currentExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) + totalSubsMonthly;
+    const prevTotalExpenses = prevExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) + totalSubsMonthly;
 
     const latestAssetRecords = getLatestAssetRecords();
     const latestAsset = latestAssetRecords[0] || null;
@@ -792,11 +786,11 @@ function renderDashboard() {
     const incomeDiff = totalIncome - prevTotalIncome;
     document.getElementById('total-income').textContent = formatCurrency(totalIncome);
     document.getElementById('income-desc').textContent = `前月比: ${incomeDiff >= 0 ? '+' : ''}${formatCurrency(incomeDiff)}`;
-    document.getElementById('total-expenses').textContent = formatCurrency(allExpensesTotal);
+    document.getElementById('total-expenses').textContent = formatCurrency(totalExpenses);
     const expenseDiff = totalExpenses - prevTotalExpenses;
     const expenseTrendEl = document.getElementById('expense-desc-card');
     expenseTrendEl.className = `card-trend ${expenseDiff > 0 ? 'text-danger' : 'text-success'}`;
-    expenseTrendEl.textContent = `${isCurrentMonth ? '前月同日比' : '前月比'}: ${expenseDiff >= 0 ? '+' : ''}${formatCurrency(expenseDiff)}`;
+    expenseTrendEl.textContent = `前月比: ${expenseDiff >= 0 ? '+' : ''}${formatCurrency(expenseDiff)}`;
 
     const currentBalance = totalIncome - totalExpenses;
     const previousBalance = prevTotalIncome - prevTotalExpenses;
@@ -806,7 +800,7 @@ function renderDashboard() {
     balanceEl.className = `card-value ${currentBalance >= 0 ? 'text-primary' : 'text-danger'}`;
     const balanceTrendEl = document.getElementById('balance-trend');
     balanceTrendEl.className = `card-trend ${balanceDiff >= 0 ? 'text-success' : 'text-danger'}`;
-    balanceTrendEl.textContent = `${isCurrentMonth ? '前月同日比' : '前月比'}: ${balanceDiff >= 0 ? '+' : ''}${formatCurrency(balanceDiff)}`;
+    balanceTrendEl.textContent = `前月比: ${balanceDiff >= 0 ? '+' : ''}${formatCurrency(balanceDiff)}`;
     document.getElementById('total-subs-monthly').textContent = formatCurrency(totalSubsMonthly);
     document.getElementById('total-subs-count').textContent = `契約数: ${state.subscriptions.length} 件`;
 
@@ -1177,7 +1171,7 @@ function renderCashflowChart() {
 
     // 支出集計 (支出額 + サブスク月割)
     state.expenses.forEach(exp => {
-        const parsed = parseYearMonth(exp.yearMonth);
+        const parsed = getExpenseYearMonth(exp);
         if (parsed) {
             months.forEach((m, idx) => {
                 if (parsed.year === m.year && parsed.month === m.month) {
@@ -1835,6 +1829,7 @@ function initSettings() {
                 localStorage.setItem('kakeibo_gas_url', url);
                 state.isDemoMode = false;
                 state.syncState = 'synced';
+                state.lastSyncedAt = Date.now();
                 
                 applyApiData(data);
                 saveApiDataCache();
@@ -1912,6 +1907,10 @@ function parseYearMonth(str) {
     return null;
 }
 
+function getExpenseYearMonth(expense) {
+    return parseYearMonth(expense?.date) || parseYearMonth(expense?.yearMonth);
+}
+
 // 支出データを月でフィルタリング
 function filterExpensesByMonth(expenses, targetDate) {
     if (!Array.isArray(expenses)) return [];
@@ -1921,7 +1920,7 @@ function filterExpensesByMonth(expenses, targetDate) {
     
     return expenses.filter(exp => {
         if (!exp) return false;
-        const parsed = parseYearMonth(exp.yearMonth);
+        const parsed = getExpenseYearMonth(exp);
         return parsed && parsed.year === targetYear && parsed.month === targetMonth;
     });
 }
