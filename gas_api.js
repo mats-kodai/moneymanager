@@ -200,7 +200,7 @@ function doPost(e) {
       const amount = Number(postData.amount || 0);
       const description = postData.description || "";
 
-      const nextRow = getLastRowForColumn(expenseSheet, 1) + 1;
+      const nextRow = getLastRowForColumn(expenseSheet, 2) + 1;
       expenseSheet.getRange(nextRow, 1, 1, 5).setValues([[yearMonth, dateStr, category, amount, description]]);
 
     } else if (type === "income") {
