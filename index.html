@@ -11,7 +11,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <!-- Custom Style -->
-    <link rel="stylesheet" href="styles.css?v=4.1.0">
+    <link rel="stylesheet" href="styles.css?v=4.2.0">
 </head>
 <body>
     <!-- Self-contained interface icons: reliable even when external icon fonts are blocked. -->
@@ -255,6 +255,99 @@
                         </div>
                     </div>
                 </section>
+            </section>
+
+            <!-- Tab: Annual report -->
+            <section id="tab-annual-report" class="tab-pane">
+                <div class="annual-report-toolbar">
+                    <div>
+                        <p class="section-kicker">YEARLY ACTUAL</p>
+                        <h2>年間実績</h2>
+                    </div>
+                    <div class="year-selector" role="group" aria-label="年間レポートの表示年を選択">
+                        <button type="button" class="btn-icon" id="annual-prev-year" aria-label="前年を表示"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg></button>
+                        <span id="annual-year-display" aria-live="polite">—</span>
+                        <button type="button" class="btn-icon" id="annual-next-year" aria-label="翌年を表示"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg></button>
+                    </div>
+                </div>
+
+                <div class="annual-summary-grid">
+                    <div class="summary-card annual-summary-card annual-income-card">
+                        <div class="card-header"><span class="card-label">年間手取り収入</span></div>
+                        <div class="card-value" id="annual-income-total">¥0</div>
+                        <div class="card-trend" id="annual-income-note">1月〜12月の合計</div>
+                    </div>
+                    <div class="summary-card annual-summary-card annual-expense-card">
+                        <div class="card-header"><span class="card-label">年間総支出</span></div>
+                        <div class="card-value" id="annual-expense-total">¥0</div>
+                        <div class="card-trend" id="annual-expense-note">変動費 + サブスク</div>
+                    </div>
+                    <div class="summary-card annual-summary-card annual-balance-card">
+                        <div class="card-header"><span class="card-label">年間収支</span></div>
+                        <div class="card-value" id="annual-balance-total">¥0</div>
+                        <div class="card-trend">年間手取り収入 − 年間総支出</div>
+                    </div>
+                    <div class="summary-card annual-summary-card annual-savings-card">
+                        <div class="card-header"><span class="card-label">年間貯蓄率</span></div>
+                        <div class="card-value" id="annual-savings-rate">—</div>
+                        <div class="card-trend">年間収支 ÷ 年間手取り収入</div>
+                    </div>
+                </div>
+
+                <div class="chart-card annual-section-card">
+                    <div class="detail-header">
+                        <h3 id="annual-cashflow-title">月別の収入・支出・収支</h3>
+                        <span class="annual-data-note">未来日付の入力を含む</span>
+                    </div>
+                    <div class="chart-wrapper annual-cashflow-chart-wrapper">
+                        <canvas id="annual-cashflow-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="transactions-table-card annual-section-card">
+                    <div class="detail-header">
+                        <h3 id="annual-monthly-title">1月〜12月の月別実績</h3>
+                        <span class="annual-data-note">サブスク月額換算を含む</span>
+                    </div>
+                    <div class="table-wrapper responsive-table-wrapper">
+                        <table class="main-table responsive-detail-table annual-monthly-table">
+                            <thead>
+                                <tr>
+                                    <th>月</th>
+                                    <th class="text-right">手取り収入</th>
+                                    <th class="text-right">総支出</th>
+                                    <th class="text-right">収支</th>
+                                    <th class="text-right">貯蓄率</th>
+                                </tr>
+                            </thead>
+                            <tbody id="annual-monthly-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="annual-report-grid">
+                    <div class="chart-card annual-section-card">
+                        <h3 id="annual-category-title">年間支出の内訳</h3>
+                        <div class="annual-category-layout">
+                            <div class="chart-wrapper annual-category-chart-wrapper">
+                                <canvas id="annual-category-chart"></canvas>
+                            </div>
+                            <ol class="category-top-list" id="annual-category-list" aria-label="年間支出額上位5項目"></ol>
+                        </div>
+                    </div>
+
+                    <div class="detail-card annual-section-card">
+                        <h3 id="annual-income-breakdown-title">年間の収入・控除内訳</h3>
+                        <div class="annual-income-breakdown">
+                            <div class="annual-breakdown-row"><span>総支給額</span><strong id="annual-gross-pay">¥0</strong></div>
+                            <div class="annual-breakdown-row"><span>所得税・住民税</span><strong id="annual-taxes">¥0</strong></div>
+                            <div class="annual-breakdown-row"><span>社会保険料</span><strong id="annual-social-insurance">¥0</strong></div>
+                            <div class="annual-breakdown-row"><span>その他控除</span><strong id="annual-other-deductions">¥0</strong></div>
+                            <div class="annual-breakdown-row"><span>交通費</span><strong id="annual-transportation">¥0</strong></div>
+                            <div class="annual-breakdown-row annual-breakdown-total"><span>手取り収入</span><strong id="annual-take-home-pay">¥0</strong></div>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <!-- Tab: Transactions (Switchable Tabs for Expense/Income/Subs) -->
@@ -552,6 +645,11 @@
                 <span class="header-menu-item-copy"><strong>同期</strong><small id="last-sync-text">最終更新: 未同期</small></span>
                 <svg class="icon header-menu-arrow" aria-hidden="true"><use href="#icon-arrow"></use></svg>
             </button>
+            <button type="button" class="header-menu-item" data-tab="annual-report">
+                <span class="header-menu-item-icon"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg></span>
+                <span class="header-menu-item-copy"><strong>年間レポート</strong></span>
+                <svg class="icon header-menu-arrow" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+            </button>
             <button type="button" class="header-menu-item" data-tab="budget">
                 <span class="header-menu-item-icon"><svg class="icon" aria-hidden="true"><use href="#icon-target"></use></svg></span>
                 <span class="header-menu-item-copy"><strong>予算と資産目標</strong></span>
@@ -630,6 +728,6 @@
     </nav>
 
     <!-- Script File -->
-    <script src="app.js?v=4.1.0"></script>
+    <script src="app.js?v=4.2.0"></script>
 </body>
 </html>

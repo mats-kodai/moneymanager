@@ -24,6 +24,7 @@ const state = {
     expenseCategories: ["個人_食費", "交友_食費", "交通費", "家賃", "日用品・被服費", "医療費", "娯楽費", "教育費・研鑽費", "交際費", "旅費", "通信費", "雑費", "サブスク"],
     incomeTypes: ["給与所得", "配当所得", "譲渡所得", "その他"],
     currentMonth: initialMonth,
+    annualReportYear: initialMonth.getFullYear(),
     showAssetsBreakdown: false, // 資産の内訳表示フラグ
     assetRange: 'all',          // 資産グラフの表示期間 ('all', '1m', '3m', '6m', '1y')
     isDemoMode: true,
@@ -155,6 +156,8 @@ const MOCK_ASSET_TARGETS = [
 let assetTrendChart = null;
 let monthlyTrendChart = null;
 let categoryDistributionChart = null;
+let annualCashflowChart = null;
+let annualCategoryChart = null;
 
 // --- Initialize App ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -163,6 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
     initHeaderMenu();
     initMonthSelector();
+    initAnnualReport();
     initFormLogic();
     initCalculatorModal();
     initSettings();
@@ -217,6 +221,8 @@ function showMainTab(tabId) {
 
     if (tabId === 'dashboard') {
         renderDashboard();
+    } else if (tabId === 'annual-report') {
+        renderAnnualReport();
     } else if (tabId === 'budget') {
         renderBudgetView();
     } else if (tabId === 'transactions') {
@@ -309,6 +315,7 @@ function initHeaderMenu() {
     const button = document.getElementById('header-menu-button');
     const closeButton = document.getElementById('header-menu-close');
     const scrim = document.getElementById('header-menu-scrim');
+    const panel = document.getElementById('header-menu-panel');
 
     button.addEventListener('click', () => {
         const isOpen = button.getAttribute('aria-expanded') === 'true';
@@ -363,6 +370,10 @@ function updateHeaderInfo(tabId) {
         case 'budget':
             titleEl.textContent = '予算と資産目標';
             subtitle = '選択月を基準に予算と年末目標の進捗を確認します。';
+            break;
+        case 'annual-report':
+            titleEl.textContent = '年間レポート';
+            subtitle = '1月から12月までの収入・支出・収支を確認します。';
             break;
         case 'transactions':
             titleEl.textContent = '明細・履歴';
@@ -419,12 +430,27 @@ function updateMonthDisplay() {
     displayEl.textContent = `${year}年${month}月`;
 }
 
+function initAnnualReport() {
+    document.getElementById('annual-prev-year').addEventListener('click', () => {
+        state.annualReportYear -= 1;
+        renderAnnualReport();
+    });
+
+    document.getElementById('annual-next-year').addEventListener('click', () => {
+        state.annualReportYear += 1;
+        renderAnnualReport();
+    });
+}
+
 function refreshActiveViews() {
     if (document.getElementById('tab-dashboard').classList.contains('active')) {
         renderDashboard();
     }
     if (document.getElementById('tab-budget').classList.contains('active')) {
         renderBudgetView();
+    }
+    if (document.getElementById('tab-annual-report').classList.contains('active')) {
+        renderAnnualReport();
     }
     if (document.getElementById('tab-transactions').classList.contains('active')) {
         const activeSubtab = document.querySelector('.sub-tab-btn.active').getAttribute('data-subtab');
@@ -753,6 +779,271 @@ function renderBudgetView() {
     const selectedAsset = getLatestAssetForMonth(state.currentMonth);
     const currentExpenses = filterExpensesByMonth(state.expenses, state.currentMonth);
     renderBudgetProgress(selectedAsset, currentExpenses, totalSubsMonthly);
+}
+
+function getAnnualReportData(year) {
+    const yearIncomes = state.incomes.filter(income => parseYearMonth(income.yearMonth)?.year === year);
+    const yearExpenses = state.expenses.filter(expense => getExpenseYearMonth(expense)?.year === year);
+    const monthlySubscriptionTotal = state.subscriptions
+        .filter(subscription => Number(subscription.year) === year)
+        .reduce((sum, subscription) => sum + Number(subscription.monthlyAmount || 0), 0);
+
+    const months = Array.from({ length: 12 }, (_, monthIndex) => {
+        const monthIncomes = yearIncomes.filter(income => parseYearMonth(income.yearMonth)?.month === monthIndex);
+        const monthExpenses = yearExpenses.filter(expense => getExpenseYearMonth(expense)?.month === monthIndex);
+        const income = monthIncomes.reduce((sum, item) => sum + Number(item.takeHomePay || 0), 0);
+        const variableExpenses = monthExpenses.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+        const expenses = variableExpenses + monthlySubscriptionTotal;
+        const balance = income - expenses;
+
+        return {
+            month: monthIndex + 1,
+            income,
+            variableExpenses,
+            subscriptionExpenses: monthlySubscriptionTotal,
+            expenses,
+            balance,
+            savingsRate: income > 0 ? (balance / income) * 100 : null
+        };
+    });
+
+    const totalIncome = months.reduce((sum, month) => sum + month.income, 0);
+    const variableExpenseTotal = months.reduce((sum, month) => sum + month.variableExpenses, 0);
+    const subscriptionAnnualTotal = monthlySubscriptionTotal * 12;
+    const totalExpenses = variableExpenseTotal + subscriptionAnnualTotal;
+    const balance = totalIncome - totalExpenses;
+    const savingsRate = totalIncome > 0 ? (balance / totalIncome) * 100 : null;
+    const categoryTotals = {};
+
+    yearExpenses.forEach(expense => {
+        const category = expense.category || '未分類';
+        categoryTotals[category] = (categoryTotals[category] || 0) + Number(expense.amount || 0);
+    });
+    if (subscriptionAnnualTotal > 0) {
+        categoryTotals['サブスク'] = (categoryTotals['サブスク'] || 0) + subscriptionAnnualTotal;
+    }
+
+    const sumIncomeField = field => yearIncomes.reduce((sum, income) => sum + Number(income[field] || 0), 0);
+
+    return {
+        year,
+        months,
+        totalIncome,
+        variableExpenseTotal,
+        subscriptionAnnualTotal,
+        totalExpenses,
+        balance,
+        savingsRate,
+        incomeRecordCount: yearIncomes.length,
+        categoryEntries: Object.entries(categoryTotals)
+            .filter(([, amount]) => amount > 0)
+            .sort((a, b) => b[1] - a[1]),
+        incomeBreakdown: {
+            grossPay: sumIncomeField('grossPay'),
+            taxes: sumIncomeField('incomeTax') + sumIncomeField('inhabitantTax'),
+            socialInsurance: sumIncomeField('socialInsurance'),
+            otherDeductions: sumIncomeField('otherDeductions'),
+            transportation: sumIncomeField('transportation'),
+            takeHomePay: totalIncome
+        }
+    };
+}
+
+function renderAnnualReport() {
+    const report = getAnnualReportData(state.annualReportYear);
+    document.getElementById('annual-year-display').textContent = `${report.year}年`;
+    document.getElementById('annual-cashflow-title').textContent = `${report.year}年の月別収入・支出・収支`;
+    document.getElementById('annual-monthly-title').textContent = `${report.year}年 1月〜12月の月別実績`;
+    document.getElementById('annual-category-title').textContent = `${report.year}年の支出内訳`;
+    document.getElementById('annual-income-breakdown-title').textContent = `${report.year}年の収入・控除内訳`;
+
+    document.getElementById('annual-income-total').textContent = formatCurrency(report.totalIncome);
+    document.getElementById('annual-income-note').textContent = `収入記録: ${report.incomeRecordCount}件`;
+    document.getElementById('annual-expense-total').textContent = formatCurrency(report.totalExpenses);
+    document.getElementById('annual-expense-note').textContent = `変動費 ${formatCurrency(report.variableExpenseTotal)} + サブスク ${formatCurrency(report.subscriptionAnnualTotal)}`;
+
+    const balanceEl = document.getElementById('annual-balance-total');
+    balanceEl.textContent = formatCurrency(report.balance);
+    balanceEl.className = `card-value${report.balance < 0 ? ' text-danger' : ''}`;
+
+    const savingsRateEl = document.getElementById('annual-savings-rate');
+    savingsRateEl.textContent = formatPercentage(report.savingsRate);
+    savingsRateEl.className = `card-value${report.savingsRate !== null && report.savingsRate < 0 ? ' text-danger' : ''}`;
+
+    const breakdown = report.incomeBreakdown;
+    document.getElementById('annual-gross-pay').textContent = formatCurrency(breakdown.grossPay);
+    document.getElementById('annual-taxes').textContent = formatCurrency(breakdown.taxes);
+    document.getElementById('annual-social-insurance').textContent = formatCurrency(breakdown.socialInsurance);
+    document.getElementById('annual-other-deductions').textContent = formatCurrency(breakdown.otherDeductions);
+    document.getElementById('annual-transportation').textContent = formatCurrency(breakdown.transportation);
+    document.getElementById('annual-take-home-pay').textContent = formatCurrency(breakdown.takeHomePay);
+
+    renderAnnualMonthlyTable(report.months);
+    renderAnnualCashflowChart(report);
+    renderAnnualCategoryChart(report);
+}
+
+function renderAnnualMonthlyTable(months) {
+    const tbody = document.getElementById('annual-monthly-tbody');
+    tbody.replaceChildren();
+
+    months.forEach(month => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td data-label="月"><strong>${month.month}月</strong></td>
+            <td data-label="手取り収入" class="text-right">${formatCurrency(month.income)}</td>
+            <td data-label="総支出" class="text-right">${formatCurrency(month.expenses)}</td>
+            <td data-label="収支" class="text-right ${month.balance >= 0 ? 'text-primary' : 'text-danger'}">${formatCurrency(month.balance)}</td>
+            <td data-label="貯蓄率" class="text-right">${formatPercentage(month.savingsRate)}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function renderAnnualCashflowChart(report) {
+    const ctx = document.getElementById('annual-cashflow-chart').getContext('2d');
+    const theme = getChartTheme();
+    const chartFont = { family: 'Roboto, "Noto Sans JP", sans-serif', size: 11 };
+
+    if (annualCashflowChart) annualCashflowChart.destroy();
+
+    annualCashflowChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: report.months.map(month => `${month.month}月`),
+            datasets: [
+                {
+                    label: '手取り収入',
+                    data: report.months.map(month => month.income),
+                    backgroundColor: theme.primary,
+                    borderRadius: 7,
+                    order: 2
+                },
+                {
+                    label: '総支出',
+                    data: report.months.map(month => month.expenses),
+                    backgroundColor: theme.error,
+                    borderRadius: 7,
+                    order: 2
+                },
+                {
+                    type: 'line',
+                    label: '収支',
+                    data: report.months.map(month => month.balance),
+                    borderColor: theme.onTertiaryContainer,
+                    backgroundColor: colorWithAlpha(theme.onTertiaryContainer, 0.12),
+                    borderWidth: 3,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    tension: 0.28,
+                    fill: false,
+                    order: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'top', labels: { font: chartFont, color: theme.onSurfaceVariant } },
+                tooltip: { callbacks: { label: context => ` ${context.dataset.label}: ${formatCurrency(context.raw)}` } }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: chartFont, color: theme.onSurfaceVariant } },
+                y: {
+                    grid: { color: theme.outlineVariant },
+                    ticks: {
+                        font: chartFont,
+                        color: theme.onSurfaceVariant,
+                        callback: value => Math.abs(value) >= 10000 ? `${value / 10000}万円` : `${value}円`
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderAnnualCategoryChart(report) {
+    const ctx = document.getElementById('annual-category-chart').getContext('2d');
+    const theme = getChartTheme();
+    const colors = [
+        theme.primary,
+        theme.onTertiaryContainer,
+        theme.inversePrimary,
+        theme.onSecondaryContainer,
+        theme.outline,
+        theme.primaryContainer,
+        theme.tertiaryContainer,
+        theme.inverseSurface,
+        theme.outlineVariant
+    ];
+    const labels = report.categoryEntries.map(([category]) => category);
+    const values = report.categoryEntries.map(([, amount]) => amount);
+    const list = document.getElementById('annual-category-list');
+    list.replaceChildren();
+
+    report.categoryEntries.slice(0, 5).forEach(([category, amount], index) => {
+        const item = document.createElement('li');
+        const label = document.createElement('span');
+        label.className = 'category-rank-label';
+        const dot = document.createElement('span');
+        dot.className = 'category-color-dot';
+        dot.style.backgroundColor = colors[index % colors.length];
+        const name = document.createElement('span');
+        name.textContent = category;
+        label.append(dot, name);
+        const value = document.createElement('strong');
+        value.textContent = formatCurrency(amount);
+        item.append(label, value);
+        list.appendChild(item);
+    });
+
+    if (annualCategoryChart) annualCategoryChart.destroy();
+
+    if (values.length === 0) {
+        const emptyItem = document.createElement('li');
+        emptyItem.className = 'category-empty';
+        emptyItem.textContent = '選択年の支出データはありません。';
+        list.appendChild(emptyItem);
+        annualCategoryChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: { labels: ['データなし'], datasets: [{ data: [1], backgroundColor: [theme.surfaceContainerHighest], borderWidth: 0 }] },
+            plugins: [doughnutCenterLabel],
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { enabled: false }, doughnutCenterLabel: { caption: '年間支出', total: 0 } },
+                cutout: '68%'
+            }
+        });
+        return;
+    }
+
+    annualCategoryChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels,
+            datasets: [{
+                data: values,
+                backgroundColor: labels.map((_, index) => colors[index % colors.length]),
+                borderWidth: 1,
+                borderColor: theme.surface,
+                hoverOffset: 4
+            }]
+        },
+        plugins: [doughnutCenterLabel],
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: context => ` ${context.label}: ${formatCurrency(context.raw)}` } },
+                doughnutCenterLabel: { caption: '年間支出', total: report.totalExpenses }
+            },
+            cutout: '68%'
+        }
+    });
 }
 
 // --- Dashboard Render Logic ---
@@ -1880,6 +2171,10 @@ function renderSettings() {
 // 金額フォーマット (¥1,234)
 function formatCurrency(amount) {
     return '¥' + Math.round(amount).toLocaleString('ja-JP');
+}
+
+function formatPercentage(value) {
+    return Number.isFinite(value) ? `${value.toFixed(1)}%` : '—';
 }
 
 // スプレッドシート内の年月表現のゆれを解決してパース
