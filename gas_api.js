@@ -6,7 +6,7 @@
  */
 
 // スプレッドシートID
-const SPREADSHEET_ID = '1q3HGf8F4A99s_MUGUH_2c04ai8E8rNb-h_NO6Js3UqE'; 
+const SPREADSHEET_ID = '[任意で入力]'; 
 
 // スプレッドシート名定義
 const SHEET_ASSETS = "週次資産記録";
