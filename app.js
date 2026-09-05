@@ -73,7 +73,7 @@ function getChartTheme() {
 }
 
 function initMaterialInteractions() {
-    const rippleTargets = document.querySelectorAll('button, .menu-item, .bottom-nav-item, .link-more');
+    const rippleTargets = document.querySelectorAll('button, .bottom-nav-item, .link-more');
     rippleTargets.forEach(target => {
         target.addEventListener('pointerdown', event => {
             if (event.button !== 0) return;
@@ -97,17 +97,6 @@ function initMaterialInteractions() {
     Chart.defaults.plugins.tooltip.backgroundColor = theme.inverseSurface;
     Chart.defaults.plugins.tooltip.titleColor = theme.inverseOnSurface;
     Chart.defaults.plugins.tooltip.bodyColor = theme.inverseOnSurface;
-}
-
-function createIcon(symbolId, className = 'icon') {
-    const svgNamespace = 'http://www.w3.org/2000/svg';
-    const icon = document.createElementNS(svgNamespace, 'svg');
-    const use = document.createElementNS(svgNamespace, 'use');
-    icon.setAttribute('class', className);
-    icon.setAttribute('aria-hidden', 'true');
-    use.setAttribute('href', `#icon-${symbolId}`);
-    icon.appendChild(use);
-    return icon;
 }
 
 // --- Generic demo data (actual spreadsheet values are never bundled in GitHub) ---
@@ -171,6 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initMaterialInteractions();
     initCategories();
     initNavigation();
+    initHeaderMenu();
     initMonthSelector();
     initFormLogic();
     initCalculatorModal();
@@ -198,45 +188,55 @@ function initCategories() {
 }
 
 // --- Navigation ---
-function initNavigation() {
-    // メインタブ切り替え (サイドバーメニューおよびボトムナビゲーション)
-    const navLinks = document.querySelectorAll('.sidebar-menu .menu-item, .bottom-nav .bottom-nav-item');
+function showMainTab(tabId) {
+    const primaryNavItems = document.querySelectorAll('.bottom-nav-item');
+    const secondaryNavItems = document.querySelectorAll('.header-menu-item[data-tab]');
     const tabPanes = document.querySelectorAll('.tab-pane');
+    const targetPane = document.getElementById(`tab-${tabId}`);
+    if (!targetPane) return;
 
-    navLinks.forEach(item => {
+    primaryNavItems.forEach(item => {
+        const isActive = item.getAttribute('data-tab') === tabId;
+        item.classList.toggle('active', isActive);
+        if (isActive) item.setAttribute('aria-current', 'page');
+        else item.removeAttribute('aria-current');
+    });
+
+    secondaryNavItems.forEach(item => {
+        const isActive = item.getAttribute('data-tab') === tabId;
+        item.classList.toggle('active', isActive);
+        if (isActive) item.setAttribute('aria-current', 'page');
+        else item.removeAttribute('aria-current');
+    });
+
+    tabPanes.forEach(pane => pane.classList.remove('active'));
+    targetPane.classList.add('active');
+    updateHeaderInfo(tabId);
+    closeHeaderMenu(false);
+
+    if (tabId === 'dashboard') {
+        renderDashboard();
+    } else if (tabId === 'budget') {
+        renderBudgetView();
+    } else if (tabId === 'transactions') {
+        document.querySelector('.sub-tab-btn[data-subtab="expense-list"]').click();
+    } else if (tabId === 'add-transaction') {
+        resetForms();
+    } else if (tabId === 'settings') {
+        renderSettings();
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function initNavigation() {
+    const destinations = document.querySelectorAll('.bottom-nav-item, .header-menu-item[data-tab]');
+
+    destinations.forEach(item => {
         if (item.classList.contains('active')) item.setAttribute('aria-current', 'page');
-        item.addEventListener('click', (e) => {
-            e.preventDefault();
-            const tabId = item.getAttribute('data-tab');
-
-            // サイドバーとボトムナビ両方のアクティブ状態を同期
-            navLinks.forEach(link => {
-                if (link.getAttribute('data-tab') === tabId) {
-                    link.classList.add('active');
-                    link.setAttribute('aria-current', 'page');
-                } else {
-                    link.classList.remove('active');
-                    link.removeAttribute('aria-current');
-                }
-            });
-
-            // タブペインの表示切り替え
-            tabPanes.forEach(pane => pane.classList.remove('active'));
-            const targetPane = document.getElementById(`tab-${tabId}`);
-            if (targetPane) targetPane.classList.add('active');
-
-            updateHeaderInfo(tabId);
-            
-            if (tabId === 'dashboard') {
-                renderDashboard();
-            } else if (tabId === 'transactions') {
-                // デフォルトで「支出明細」サブタブを表示
-                document.querySelector('.sub-tab-btn[data-subtab="expense-list"]').click();
-            } else if (tabId === 'add-transaction') {
-                resetForms();
-            } else if (tabId === 'settings') {
-                renderSettings();
-            }
+        item.addEventListener('click', (event) => {
+            event.preventDefault();
+            showMainTab(item.getAttribute('data-tab'));
         });
     });
 
@@ -271,12 +271,69 @@ function initNavigation() {
     // リンク遷移
     document.getElementById('view-all-expenses').addEventListener('click', (e) => {
         e.preventDefault();
-        const txMenuItem = document.querySelector('.sidebar-menu [data-tab="transactions"]');
-        if (txMenuItem) {
-            txMenuItem.click();
-            setTimeout(() => {
-                document.querySelector('.sub-tab-btn[data-subtab="expense-list"]').click();
-            }, 50);
+        showMainTab('transactions');
+    });
+}
+
+let headerMenuReturnFocus = null;
+
+function setHeaderMenuOpen(isOpen, restoreFocus = true) {
+    const button = document.getElementById('header-menu-button');
+    const panel = document.getElementById('header-menu-panel');
+    const scrim = document.getElementById('header-menu-scrim');
+    if (!button || !panel || !scrim) return;
+
+    if (isOpen) {
+        headerMenuReturnFocus = document.activeElement;
+        panel.classList.remove('hidden');
+        scrim.classList.remove('hidden');
+        button.setAttribute('aria-expanded', 'true');
+        document.body.classList.add('menu-open');
+        requestAnimationFrame(() => panel.querySelector('button')?.focus());
+    } else {
+        panel.classList.add('hidden');
+        scrim.classList.add('hidden');
+        button.setAttribute('aria-expanded', 'false');
+        document.body.classList.remove('menu-open');
+        if (restoreFocus && headerMenuReturnFocus instanceof HTMLElement) headerMenuReturnFocus.focus();
+        headerMenuReturnFocus = null;
+    }
+}
+
+function closeHeaderMenu(restoreFocus = true) {
+    setHeaderMenuOpen(false, restoreFocus);
+}
+
+function initHeaderMenu() {
+    const button = document.getElementById('header-menu-button');
+    const closeButton = document.getElementById('header-menu-close');
+    const scrim = document.getElementById('header-menu-scrim');
+
+    button.addEventListener('click', () => {
+        const isOpen = button.getAttribute('aria-expanded') === 'true';
+        setHeaderMenuOpen(!isOpen);
+    });
+    closeButton.addEventListener('click', () => closeHeaderMenu());
+    scrim.addEventListener('click', () => closeHeaderMenu());
+    document.addEventListener('keydown', event => {
+        const isOpen = button.getAttribute('aria-expanded') === 'true';
+        if (event.key === 'Escape' && isOpen) {
+            closeHeaderMenu();
+            return;
+        }
+
+        if (event.key !== 'Tab' || !isOpen) return;
+        const focusableItems = [...panel.querySelectorAll('button:not([disabled]), a[href]')];
+        if (focusableItems.length === 0) return;
+        const firstItem = focusableItems[0];
+        const lastItem = focusableItems[focusableItems.length - 1];
+
+        if (event.shiftKey && document.activeElement === firstItem) {
+            event.preventDefault();
+            lastItem.focus();
+        } else if (!event.shiftKey && document.activeElement === lastItem) {
+            event.preventDefault();
+            firstItem.focus();
         }
     });
 }
@@ -286,33 +343,42 @@ function updateHeaderInfo(tabId) {
     const subtitleEl = document.getElementById('page-subtitle');
     const monthSelector = document.querySelector('.month-selector');
     
-    // dashboardかtransactionsの場合のみ月選択を表示
+    // 月次の文脈を持つ画面だけ月選択を表示
     if (monthSelector) {
-        if (tabId === 'dashboard' || tabId === 'transactions') {
+        if (tabId === 'dashboard' || tabId === 'budget' || tabId === 'transactions') {
             monthSelector.style.display = 'flex';
         } else {
             monthSelector.style.display = 'none';
         }
     }
+
+    let subtitle = '';
     
     switch (tabId) {
         case 'dashboard':
             titleEl.textContent = 'MoneyManager';
-            subtitleEl.textContent = '家計と資産の状況をリアルタイムに把握します。';
+            subtitle = '';
+            break;
+        case 'budget':
+            titleEl.textContent = '予算と資産目標';
+            subtitle = '選択月を基準に予算と年末目標の進捗を確認します。';
             break;
         case 'transactions':
             titleEl.textContent = '明細・履歴';
-            subtitleEl.textContent = 'スプレッドシートから読み込んだ全記録を一覧表示します。';
+            subtitle = 'スプレッドシートから読み込んだ全記録を一覧表示します。';
             break;
         case 'add-transaction':
             titleEl.textContent = '取引を追加';
-            subtitleEl.textContent = 'スプレッドシートの「支出記録」または「収入記録」にデータを記録します。';
+            subtitle = 'スプレッドシートの「支出記録」または「収入記録」にデータを記録します。';
             break;
         case 'settings':
             titleEl.textContent = '設定';
-            subtitleEl.textContent = 'スプレッドシート連携やカテゴリの設定を行います。';
+            subtitle = 'スプレッドシート連携やカテゴリの設定を行います。';
             break;
     }
+
+    subtitleEl.textContent = subtitle;
+    subtitleEl.classList.toggle('hidden', subtitle === '');
 }
 
 // --- Month Selector ---
@@ -334,6 +400,7 @@ function initMonthSelector() {
     });
 
     syncBtn.addEventListener('click', () => {
+        closeHeaderMenu(false);
         if (state.gasUrl) {
             syncWithGas();
         } else {
@@ -354,6 +421,9 @@ function updateMonthDisplay() {
 function refreshActiveViews() {
     if (document.getElementById('tab-dashboard').classList.contains('active')) {
         renderDashboard();
+    }
+    if (document.getElementById('tab-budget').classList.contains('active')) {
+        renderBudgetView();
     }
     if (document.getElementById('tab-transactions').classList.contains('active')) {
         const activeSubtab = document.querySelector('.sub-tab-btn.active').getAttribute('data-subtab');
@@ -460,10 +530,7 @@ function loadApiDataCache() {
 }
 
 function refreshSyncedViews() {
-    renderDashboard();
-    if (document.getElementById('tab-transactions').classList.contains('active')) {
-        refreshActiveViews();
-    }
+    refreshActiveViews();
 }
 
 async function syncWithGas({ background = false, silent = false } = {}) {
@@ -549,8 +616,8 @@ function safeParseDate(dateVal) {
     return new Date(0);
 }
 
-function formatAssetUpdateDate(dateVal) {
-    if (!dateVal) return "週次データなし";
+function formatAssetAsOfDate(dateVal) {
+    if (!dateVal) return '記録なし';
     
     const d = safeParseDate(dateVal);
     if (isNaN(d.getTime()) || d.getTime() === 0) {
@@ -561,14 +628,7 @@ function formatAssetUpdateDate(dateVal) {
     const month = d.getMonth() + 1;
     const day = d.getDate();
     
-    const hours = d.getHours();
-    const minutes = d.getMinutes();
-    
-    // スプレッドシートの日付オブジェクト等で時分秒が指定されているか確認
-    const hasTime = String(dateVal).includes(":") || (hours !== 0 || minutes !== 0);
-    const timeStr = hasTime ? ` ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}` : "";
-    
-    return `${year}年${month}月${day}日${timeStr}更新`;
+    return `${year}年${month}月${day}日時点`;
 }
 
 function escapeHtml(value) {
@@ -589,6 +649,12 @@ function getLatestAssetForMonth(monthDate) {
         })
         .sort((a, b) => safeParseDate(a.date) - safeParseDate(b.date));
     return monthlyAssets.length > 0 ? monthlyAssets[monthlyAssets.length - 1] : null;
+}
+
+function getLatestAssetRecords() {
+    return state.assets
+        .filter(asset => safeParseDate(asset.date).getTime() !== 0)
+        .sort((a, b) => safeParseDate(b.date) - safeParseDate(a.date));
 }
 
 function isSpecialExpense(expense, fiscalYearLabel) {
@@ -682,6 +748,13 @@ function renderBudgetProgress(selectedAsset, currentExpenses, totalSubsMonthly) 
     }
 }
 
+function renderBudgetView() {
+    const totalSubsMonthly = state.subscriptions.reduce((sum, sub) => sum + Number(sub.monthlyAmount || 0), 0);
+    const selectedAsset = getLatestAssetForMonth(state.currentMonth);
+    const currentExpenses = filterExpensesByMonth(state.expenses, state.currentMonth);
+    renderBudgetProgress(selectedAsset, currentExpenses, totalSubsMonthly);
+}
+
 // --- Dashboard Render Logic ---
 function renderDashboard() {
     const totalSubsMonthly = state.subscriptions.reduce((sum, sub) => sum + Number(sub.monthlyAmount || 0), 0);
@@ -701,24 +774,20 @@ function renderDashboard() {
     const prevTotalExpenses = prevExpensesToDay.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) + totalSubsMonthly;
     const allExpensesTotal = currentExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) + totalSubsMonthly;
 
-    const selectedAsset = getLatestAssetForMonth(state.currentMonth);
-    const previousAsset = getLatestAssetForMonth(prevMonthDate);
+    const latestAssetRecords = getLatestAssetRecords();
+    const latestAsset = latestAssetRecords[0] || null;
+    const previousAsset = latestAssetRecords[1] || null;
     const assetTrendEl = document.getElementById('assets-trend');
-    document.getElementById('total-assets').textContent = selectedAsset ? formatCurrency(selectedAsset.total) : '—';
-    if (selectedAsset && previousAsset) {
-        const assetDiff = Number(selectedAsset.total || 0) - Number(previousAsset.total || 0);
+    document.getElementById('total-assets').textContent = latestAsset ? formatCurrency(latestAsset.total) : '—';
+    document.getElementById('assets-as-of').textContent = latestAsset ? formatAssetAsOfDate(latestAsset.date) : '記録なし';
+    if (latestAsset && previousAsset) {
+        const assetDiff = Number(latestAsset.total || 0) - Number(previousAsset.total || 0);
         assetTrendEl.className = `card-trend ${assetDiff >= 0 ? 'text-success' : 'text-danger'}`;
-        assetTrendEl.textContent = `前月末比: ${assetDiff >= 0 ? '+' : ''}${formatCurrency(assetDiff)}`;
+        assetTrendEl.textContent = `前回記録比: ${assetDiff >= 0 ? '+' : ''}${formatCurrency(assetDiff)}`;
     } else {
         assetTrendEl.className = 'card-trend';
-        assetTrendEl.textContent = selectedAsset ? '前月比較データなし' : '選択月の記録なし';
+        assetTrendEl.textContent = latestAsset ? '比較データなし' : '資産記録なし';
     }
-    const updateDateEl = document.getElementById('assets-update-date');
-    updateDateEl.replaceChildren();
-    const clockIcon = createIcon('clock');
-    const updateText = document.createElement('span');
-    updateText.textContent = selectedAsset ? formatAssetUpdateDate(selectedAsset.date) : '選択月の記録なし';
-    updateDateEl.append(clockIcon, updateText);
 
     const incomeDiff = totalIncome - prevTotalIncome;
     document.getElementById('total-income').textContent = formatCurrency(totalIncome);
@@ -743,58 +812,66 @@ function renderDashboard() {
 
     document.getElementById('category-chart-title').textContent = `${state.currentMonth.getFullYear()}年${state.currentMonth.getMonth() + 1}月の支出内訳`;
     document.getElementById('recent-expenses-title').textContent = `${state.currentMonth.getFullYear()}年${state.currentMonth.getMonth() + 1}月の最近の支出`;
-    renderBudgetProgress(selectedAsset, currentExpenses, totalSubsMonthly);
-    renderAssetChart();
-    renderCashflowChart();
     renderCategoryDoughnut(currentExpenses, totalSubsMonthly);
     renderRecentExpenses(currentExpenses);
-    renderActiveSubsTable();
+    renderCashflowChart();
+    renderAssetChart();
+}
+
+function renderExpenseLedger(container, expenses, emptyMessage) {
+    container.replaceChildren();
+
+    if (expenses.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'expense-ledger-empty';
+        empty.textContent = emptyMessage;
+        container.appendChild(empty);
+        return;
+    }
+
+    const sortedExpenses = [...expenses].sort((a, b) => safeParseDate(b.date) - safeParseDate(a.date));
+    const groupedExpenses = new Map();
+
+    sortedExpenses.forEach(expense => {
+        const parsedDate = safeParseDate(expense.date);
+        const dateKey = parsedDate.getTime() === 0
+            ? String(expense.date || '日付不明')
+            : `${parsedDate.getFullYear()}-${parsedDate.getMonth()}-${parsedDate.getDate()}`;
+        if (!groupedExpenses.has(dateKey)) groupedExpenses.set(dateKey, []);
+        groupedExpenses.get(dateKey).push(expense);
+    });
+
+    groupedExpenses.forEach(groupExpenses => {
+        const group = document.createElement('section');
+        group.className = 'expense-date-group';
+        group.innerHTML = `<h3 class="expense-date-label">${escapeHtml(formatFullDateAndWeek(groupExpenses[0].date))}</h3>`;
+
+        groupExpenses.forEach(expense => {
+            const entry = document.createElement('article');
+            entry.className = 'expense-entry';
+            entry.innerHTML = `
+                <div class="expense-entry-main">
+                    <span class="expense-entry-category">${escapeHtml(expense.category || '項目なし')}</span>
+                    <strong class="expense-entry-amount">-${formatCurrency(Number(expense.amount) || 0)}</strong>
+                </div>
+                <p class="expense-entry-note">${escapeHtml(expense.description || '備考なし')}</p>
+            `;
+            group.appendChild(entry);
+        });
+
+        container.appendChild(group);
+    });
 }
 
 function renderRecentExpenses(currentMonthExpenses) {
-    const tbody = document.getElementById('recent-expenses-tbody');
-    tbody.innerHTML = '';
-
     const recent = [...currentMonthExpenses]
         .sort((a, b) => safeParseDate(b.date) - safeParseDate(a.date))
         .slice(0, 5);
-
-    if (recent.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">選択月の支出データはありません。</td></tr>';
-        return;
-    }
-
-    recent.forEach(exp => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${escapeHtml(formatDayAndWeek(exp.date))}</td>
-            <td><span class="badge">${escapeHtml(exp.category)}</span></td>
-            <td>${escapeHtml(exp.description || '---')}</td>
-            <td class="text-right text-danger">-${formatCurrency(exp.amount)}</td>
-        `;
-        tbody.appendChild(row);
-    });
-}
-
-function renderActiveSubsTable() {
-    const tbody = document.getElementById('active-subs-tbody');
-    tbody.innerHTML = '';
-
-    if (state.subscriptions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">契約中のサブスクはありません。</td></tr>';
-        return;
-    }
-
-    state.subscriptions.forEach(sub => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td><strong>${escapeHtml(sub.name)}</strong></td>
-            <td>年 ${sub.paymentCount} 回</td>
-            <td>${formatCurrency(sub.amount)}</td>
-            <td class="text-right font-bold text-primary">${formatCurrency(sub.monthlyAmount)} /月</td>
-        `;
-        tbody.appendChild(row);
-    });
+    renderExpenseLedger(
+        document.getElementById('recent-expenses-list'),
+        recent,
+        '選択月の支出データはありません。'
+    );
 }
 
 // --- Chart.js Draw Functions (Light Mode Custom Styling) ---
@@ -1333,47 +1410,12 @@ function renderExpensesList() {
         return matchSearch && matchCat;
     });
 
-    const list = document.getElementById('expense-list');
-    list.innerHTML = '';
     document.getElementById('expense-count').textContent = `選択月の支出明細: 全 ${displayList.length} 件`;
-
-    if (displayList.length === 0) {
-        list.innerHTML = '<div class="expense-ledger-empty">条件に該当する支出明細はありません。</div>';
-        return;
-    }
-
-    const sortedExpenses = [...displayList].sort((a, b) => safeParseDate(b.date) - safeParseDate(a.date));
-    const groupedExpenses = new Map();
-
-    sortedExpenses.forEach(expense => {
-        const parsedDate = safeParseDate(expense.date);
-        const dateKey = parsedDate.getTime() === 0
-            ? String(expense.date || '日付不明')
-            : `${parsedDate.getFullYear()}-${parsedDate.getMonth()}-${parsedDate.getDate()}`;
-        if (!groupedExpenses.has(dateKey)) groupedExpenses.set(dateKey, []);
-        groupedExpenses.get(dateKey).push(expense);
-    });
-
-    groupedExpenses.forEach(expenses => {
-        const group = document.createElement('section');
-        group.className = 'expense-date-group';
-        group.innerHTML = `<h3 class="expense-date-label">${escapeHtml(formatFullDateAndWeek(expenses[0].date))}</h3>`;
-
-        expenses.forEach(expense => {
-            const entry = document.createElement('article');
-            entry.className = 'expense-entry';
-            entry.innerHTML = `
-                <div class="expense-entry-main">
-                    <span class="expense-entry-category">${escapeHtml(expense.category || '項目なし')}</span>
-                    <strong class="expense-entry-amount">-${formatCurrency(Number(expense.amount) || 0)}</strong>
-                </div>
-                <p class="expense-entry-note">${escapeHtml(expense.description || '備考なし')}</p>
-            `;
-            group.appendChild(entry);
-        });
-
-        list.appendChild(group);
-    });
+    renderExpenseLedger(
+        document.getElementById('expense-list'),
+        displayList,
+        '条件に該当する支出明細はありません。'
+    );
 }
 
 // 支出フィルターのイベント
@@ -1701,9 +1743,7 @@ function resetForms() {
 
 function onTransactionSaved() {
     resetForms();
-    // ダッシュボードに移動
-    const dbMenuItem = document.querySelector('.sidebar-menu [data-tab="dashboard"]');
-    if (dbMenuItem) dbMenuItem.click();
+    showMainTab('dashboard');
 }
 
 // --- Social Insurance Calculator Modal ---
@@ -1920,17 +1960,6 @@ function showToast(message, type = 'success') {
     toastTimer = setTimeout(() => {
         toast.classList.add('hidden');
     }, 4000);
-}
-
-// 日付を「日 (曜日)」に変換 (例: "2026/07/02" -> "02日 (木)")
-function formatDayAndWeek(dateStr) {
-    if (!dateStr) return '';
-    const dateObj = new Date(dateStr);
-    if (isNaN(dateObj.getTime())) return dateStr;
-    
-    const day = String(dateObj.getDate()).padStart(2, '0');
-    const dayOfWeek = ["日", "月", "火", "水", "木", "金", "土"][dateObj.getDay()];
-    return `${day}日 (${dayOfWeek})`;
 }
 
 // 日付グループ見出し用（例: "2026/09/04" -> "2026年9月4日（金）"）
