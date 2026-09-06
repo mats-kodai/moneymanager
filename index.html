@@ -11,7 +11,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <!-- Custom Style -->
-    <link rel="stylesheet" href="styles.css?v=4.2.0">
+    <link rel="stylesheet" href="styles.css?v=4.3.0">
 </head>
 <body>
     <!-- Self-contained interface icons: reliable even when external icon fonts are blocked. -->
@@ -48,7 +48,6 @@
                         <h1 id="page-title">MoneyManager</h1>
                         <span class="demo-badge hidden" id="demo-badge">デモ版</span>
                     </div>
-                    <p class="subtitle hidden" id="page-subtitle"></p>
                 </div>
                 
                 <div class="header-actions">
@@ -91,9 +90,7 @@
                             <span class="card-label">選択月の手取り収入</span>
                         </div>
                         <div class="card-value" id="total-income">¥0</div>
-                        <div class="card-trend" id="income-desc">
-                            <span>給与・譲渡所得等の合計</span>
-                        </div>
+                        <div class="card-trend" id="income-desc"></div>
                     </div>
 
                     <!-- Card 3: Expenses (Including Subs) -->
@@ -102,9 +99,7 @@
                             <span class="card-label">選択月の総支出</span>
                         </div>
                         <div class="card-value" id="total-expenses">¥0</div>
-                        <div class="card-trend text-danger" id="expense-desc-card">
-                            <span>変動費 + サブスク月割</span>
-                        </div>
+                        <div class="card-trend text-danger" id="expense-desc-card"></div>
                     </div>
 
                     <!-- Card 4: Monthly Balance -->
@@ -217,7 +212,6 @@
                 <section class="budget-section" aria-labelledby="budget-section-title">
                     <div class="section-heading">
                         <div>
-                            <p class="section-kicker">PLAN / ACTUAL</p>
                             <h2 id="budget-section-title">進捗サマリー</h2>
                         </div>
                         <p class="section-note" id="budget-period-note">選択月時点</p>
@@ -260,10 +254,6 @@
             <!-- Tab: Annual report -->
             <section id="tab-annual-report" class="tab-pane">
                 <div class="annual-report-toolbar">
-                    <div>
-                        <p class="section-kicker">YEARLY ACTUAL</p>
-                        <h2>年間実績</h2>
-                    </div>
                     <div class="year-selector" role="group" aria-label="年間レポートの表示年を選択">
                         <button type="button" class="btn-icon" id="annual-prev-year" aria-label="前年を表示"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg></button>
                         <span id="annual-year-display" aria-live="polite">—</span>
@@ -275,29 +265,25 @@
                     <div class="summary-card annual-summary-card annual-income-card">
                         <div class="card-header"><span class="card-label">年間手取り収入</span></div>
                         <div class="card-value" id="annual-income-total">¥0</div>
-                        <div class="card-trend" id="annual-income-note">1月〜12月の合計</div>
+                        <div class="card-trend" id="annual-income-note">収入記録: 0件</div>
                     </div>
                     <div class="summary-card annual-summary-card annual-expense-card">
                         <div class="card-header"><span class="card-label">年間総支出</span></div>
                         <div class="card-value" id="annual-expense-total">¥0</div>
-                        <div class="card-trend" id="annual-expense-note">変動費 + サブスク</div>
                     </div>
                     <div class="summary-card annual-summary-card annual-balance-card">
                         <div class="card-header"><span class="card-label">年間収支</span></div>
                         <div class="card-value" id="annual-balance-total">¥0</div>
-                        <div class="card-trend">年間手取り収入 − 年間総支出</div>
                     </div>
                     <div class="summary-card annual-summary-card annual-savings-card">
                         <div class="card-header"><span class="card-label">年間貯蓄率</span></div>
                         <div class="card-value" id="annual-savings-rate">—</div>
-                        <div class="card-trend">年間収支 ÷ 年間手取り収入</div>
                     </div>
                 </div>
 
                 <div class="chart-card annual-section-card">
                     <div class="detail-header">
                         <h3 id="annual-cashflow-title">月別の収入・支出・収支</h3>
-                        <span class="annual-data-note">未来日付の入力を含む</span>
                     </div>
                     <div class="chart-wrapper annual-cashflow-chart-wrapper">
                         <canvas id="annual-cashflow-chart"></canvas>
@@ -307,7 +293,6 @@
                 <div class="transactions-table-card annual-section-card">
                     <div class="detail-header">
                         <h3 id="annual-monthly-title">1月〜12月の月別実績</h3>
-                        <span class="annual-data-note">サブスク月額換算を含む</span>
                     </div>
                     <div class="table-wrapper responsive-table-wrapper">
                         <table class="main-table responsive-detail-table annual-monthly-table">
@@ -455,7 +440,6 @@
                         <!-- 1. Expense Form -->
                         <form id="expense-form" class="transaction-form">
                             <h3>支出を記録する</h3>
-                            <p class="form-desc">家計簿の「支出記録」に直接追加されます。</p>
 
                             <div class="form-group">
                                 <label for="exp-amount" class="required">支出金額 (円)</label>
@@ -492,7 +476,6 @@
                         <!-- 2. Income Form (Hidden by default) -->
                         <form id="income-form" class="transaction-form hidden">
                             <h3>収入を記録する</h3>
-                            <p class="form-desc">家計簿の「収入記録」に直接追加されます。各控除額を入力して手取りを自動計算します。</p>
 
                             <div class="form-grid">
                                 <div class="form-group">
@@ -567,23 +550,6 @@
                         </form>
                     </div>
 
-                    <!-- Shortcut Help Info -->
-                    <div class="shortcuts-card">
-                        <h3>家計簿の計算ルール</h3>
-                        <div class="rule-box">
-                            <span class="rule-title">控除合計の計算</span>
-                            <p class="rule-math">所得税 ＋ 住民税 ＋ 社会保険料 ＋ その他控除</p>
-                        </div>
-                        <div class="rule-box">
-                            <span class="rule-title">手取り額の計算</span>
-                            <p class="rule-math">総支給額 － 控除合計 － 交通費</p>
-                        </div>
-                        
-                        <div class="shortcut-tip">
-                            <div class="tip-icon"><svg class="icon" aria-hidden="true"><use href="#icon-lightbulb"></use></svg></div>
-                            <div class="tip-text">その他控除はデフォルトで「2,260円」がセットされていますが、必要に応じて変更可能です。</div>
-                        </div>
-                    </div>
                 </div>
             </section>
 
@@ -632,7 +598,6 @@
     <aside id="header-menu-panel" class="header-menu-panel hidden" role="dialog" aria-modal="true" aria-labelledby="header-menu-title">
         <div class="header-menu-heading">
             <div>
-                <p class="section-kicker">MORE</p>
                 <h2 id="header-menu-title">メニュー</h2>
             </div>
             <button type="button" class="btn-icon" id="header-menu-close" aria-label="メニューを閉じる">
@@ -671,8 +636,6 @@
                 <button type="button" class="btn-icon modal-close-btn" id="btn-close-calc" aria-label="計算画面を閉じる"><svg class="icon" aria-hidden="true"><use href="#icon-close"></use></svg></button>
             </div>
             <div class="modal-body">
-                <p class="modal-desc">内訳を入力して社会保険料の合計を算出します。</p>
-                
                 <div class="form-group">
                     <label for="calc-health">健康保険料 (円)</label>
                     <input type="number" id="calc-health" placeholder="0" class="form-input" min="0">
@@ -728,6 +691,6 @@
     </nav>
 
     <!-- Script File -->
-    <script src="app.js?v=4.2.0"></script>
+    <script src="app.js?v=4.3.0"></script>
 </body>
 </html>

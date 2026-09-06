@@ -348,7 +348,6 @@ function initHeaderMenu() {
 
 function updateHeaderInfo(tabId) {
     const titleEl = document.getElementById('page-title');
-    const subtitleEl = document.getElementById('page-subtitle');
     const monthSelector = document.querySelector('.month-selector');
     
     // 月次の文脈を持つ画面だけ月選択を表示
@@ -360,37 +359,26 @@ function updateHeaderInfo(tabId) {
         }
     }
 
-    let subtitle = '';
-    
     switch (tabId) {
         case 'dashboard':
             titleEl.textContent = 'MoneyManager';
-            subtitle = '';
             break;
         case 'budget':
             titleEl.textContent = '予算と資産目標';
-            subtitle = '選択月を基準に予算と年末目標の進捗を確認します。';
             break;
         case 'annual-report':
             titleEl.textContent = '年間レポート';
-            subtitle = '1月から12月までの収入・支出・収支を確認します。';
             break;
         case 'transactions':
             titleEl.textContent = '明細・履歴';
-            subtitle = 'スプレッドシートから読み込んだ全記録を一覧表示します。';
             break;
         case 'add-transaction':
             titleEl.textContent = '取引を追加';
-            subtitle = 'スプレッドシートの「支出記録」または「収入記録」にデータを記録します。';
             break;
         case 'settings':
             titleEl.textContent = '設定';
-            subtitle = 'スプレッドシート連携やカテゴリの設定を行います。';
             break;
     }
-
-    subtitleEl.textContent = subtitle;
-    subtitleEl.classList.toggle('hidden', subtitle === '');
 }
 
 // --- Month Selector ---
@@ -860,7 +848,6 @@ function renderAnnualReport() {
     document.getElementById('annual-income-total').textContent = formatCurrency(report.totalIncome);
     document.getElementById('annual-income-note').textContent = `収入記録: ${report.incomeRecordCount}件`;
     document.getElementById('annual-expense-total').textContent = formatCurrency(report.totalExpenses);
-    document.getElementById('annual-expense-note').textContent = `変動費 ${formatCurrency(report.variableExpenseTotal)} + サブスク ${formatCurrency(report.subscriptionAnnualTotal)}`;
 
     const balanceEl = document.getElementById('annual-balance-total');
     balanceEl.textContent = formatCurrency(report.balance);
