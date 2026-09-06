@@ -13,12 +13,14 @@ const SHEET_ASSETS = "週次資産記録";
 const SHEET_EXPENSES = "支出記録";
 const SHEET_INCOMES = "収入記録";
 const SHEET_SUBSCRIPTIONS = "サブスク管理";
+const SHEET_BUDGET_PLANS = "予算計画";
+const SHEET_SPECIAL_BUDGETS = "予算計画_特別予算";
 const SHEET_ANNUAL_BUDGETS = "年度予算";
 const SHEET_ITEM_BUDGETS = "費目別予算";
 const SHEET_ASSET_TARGETS = "資産目標";
 
 /**
- * GETリクエスト処理：家計4シートと計画3シートのデータをJSONで返します
+ * GETリクエスト処理：家計4シートと計画5シートのデータをJSONで返します
  */
 function doGet(e) {
   try {
@@ -98,7 +100,39 @@ function doGet(e) {
       });
     }
 
-    // 5. 年度予算（1行＝1年度の機械可読な計画値）
+    // 5. 予算計画（1行＝1か月の予定値）
+    const budgetPlanSheet = ss.getSheetByName(SHEET_BUDGET_PLANS);
+    const budgetPlanRows = budgetPlanSheet ? budgetPlanSheet.getDataRange().getValues() : [];
+    const budgetPlans = [];
+    for (let i = 1; i < budgetPlanRows.length; i++) {
+      const row = budgetPlanRows[i];
+      const yearMonth = formatYearMonth(row[0]);
+      if (!yearMonth) continue;
+      budgetPlans.push({
+        yearMonth: yearMonth,
+        grossIncomePlan: Number(row[1] || 0),
+        takeHomePlan: Number(row[2] || 0),
+        recurringExpensePlan: Number(row[3] || 0),
+        balancePlan: Number(row[4] || 0)
+      });
+    }
+
+    // 6. 予算計画_特別予算（1行＝1年の予算・消化額）
+    const specialBudgetSheet = ss.getSheetByName(SHEET_SPECIAL_BUDGETS);
+    const specialBudgetRows = specialBudgetSheet ? specialBudgetSheet.getDataRange().getValues() : [];
+    const specialBudgets = [];
+    for (let i = 1; i < specialBudgetRows.length; i++) {
+      const row = specialBudgetRows[i];
+      if (!row[0]) continue;
+      specialBudgets.push({
+        year: Number(row[0]),
+        budgetAmount: Number(row[1] || 0),
+        spentAmount: Number(row[2] || 0),
+        remainingAmount: Number(row[3] || 0)
+      });
+    }
+
+    // 7. 年度予算（既存画面との互換用）
     const annualBudgetSheet = ss.getSheetByName(SHEET_ANNUAL_BUDGETS);
     const annualBudgetRows = annualBudgetSheet ? annualBudgetSheet.getDataRange().getValues() : [];
     const annualBudgets = [];
@@ -119,7 +153,7 @@ function doGet(e) {
       });
     }
 
-    // 6. 費目別予算（経常・特別の分類ルールを含む）
+    // 8. 費目別予算（既存画面との互換用）
     const itemBudgetSheet = ss.getSheetByName(SHEET_ITEM_BUDGETS);
     const itemBudgetRows = itemBudgetSheet ? itemBudgetSheet.getDataRange().getValues() : [];
     const itemBudgets = [];
@@ -138,7 +172,7 @@ function doGet(e) {
       });
     }
 
-    // 7. 資産目標（暦年末の金融資産目標）
+    // 9. 資産目標（暦年末の金融資産目標）
     const assetTargetSheet = ss.getSheetByName(SHEET_ASSET_TARGETS);
     const assetTargetRows = assetTargetSheet ? assetTargetSheet.getDataRange().getValues() : [];
     const assetTargets = [];
@@ -159,6 +193,8 @@ function doGet(e) {
       incomes: incomes.reverse(),
       expenses: expenses.reverse(),
       subscriptions: subscriptions,
+      budgetPlans: budgetPlans,
+      specialBudgets: specialBudgets,
       annualBudgets: annualBudgets,
       itemBudgets: itemBudgets,
       assetTargets: assetTargets

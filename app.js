@@ -7,9 +7,9 @@ initialMonth.setDate(1);
 initialMonth.setHours(0, 0, 0, 0);
 
 const DATA_CACHE_KEY = 'moneymanager_api_cache_v1';
-const DATA_CACHE_VERSION = 1;
+const DATA_CACHE_VERSION = 2;
 const DATA_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const API_DATA_FIELDS = ['assets', 'incomes', 'expenses', 'subscriptions', 'annualBudgets', 'itemBudgets', 'assetTargets'];
+const API_DATA_FIELDS = ['assets', 'incomes', 'expenses', 'subscriptions', 'budgetPlans', 'specialBudgets', 'annualBudgets', 'itemBudgets', 'assetTargets'];
 
 // --- App State ---
 const state = {
@@ -18,6 +18,8 @@ const state = {
     incomes: [],       // 収入記録
     expenses: [],      // 支出記録
     subscriptions: [], // サブスク管理
+    budgetPlans: [],   // 予算計画（月別）
+    specialBudgets: [], // 予算計画_特別予算（年別）
     annualBudgets: [], // 年度予算
     itemBudgets: [],   // 費目別予算
     assetTargets: [],  // 暦年末資産目標
@@ -25,6 +27,9 @@ const state = {
     incomeTypes: ["給与所得", "配当所得", "譲渡所得", "その他"],
     currentMonth: initialMonth,
     annualReportYear: initialMonth.getFullYear(),
+    budgetReportYear: initialMonth.getFullYear(),
+    budgetMetric: 'expense',
+    specialBudgetYear: initialMonth.getFullYear(),
     showAssetsBreakdown: false, // 資産の内訳表示フラグ
     assetRange: 'all',          // 資産グラフの表示期間 ('all', '1m', '3m', '6m', '1y')
     isDemoMode: true,
@@ -124,12 +129,40 @@ const MOCK_EXPENSES = [
     { yearMonth: "2026/8", date: "2026/08/09", category: "交通費", amount: 3600, description: "交通" },
     { yearMonth: "2026/8", date: "2026/08/14", category: "娯楽費", amount: 12000, description: "イベント" },
     { yearMonth: "2026/8", date: "2026/08/18", category: "交友_食費", amount: 7800, description: "会食" },
-    { yearMonth: "2026/8", date: "2026/08/21", category: "日用品・被服費", amount: 4300, description: "日用品" }
+    { yearMonth: "2026/8", date: "2026/08/21", category: "日用品・被服費", amount: 4300, description: "日用品" },
+    { yearMonth: "2026/8", date: "2026/08/24", category: "旅費", amount: 28000, description: "小旅行" },
+    { yearMonth: "2026/9", date: "2026/09/12", category: "日用品・被服費", amount: 45000, description: "特別予算" }
 ];
 
 const MOCK_SUBSCRIPTIONS = [
     { year: 2026, name: "クラウドストレージ", amount: 600, paymentCount: 12, annualAmount: 7200, monthlyAmount: 600 },
     { year: 2026, name: "動画配信", amount: 1000, paymentCount: 12, annualAmount: 12000, monthlyAmount: 1000 }
+];
+
+const MOCK_BUDGET_PLANS = Array.from({ length: 5 }, (_, yearOffset) => {
+    const year = 2026 + yearOffset;
+    const regularIncome = 320000 + yearOffset * 10000;
+    const regularExpense = 180000 + yearOffset * 5000;
+    return Array.from({ length: 12 }, (_, monthIndex) => {
+        const isBonusMonth = monthIndex === 5 || monthIndex === 11;
+        const grossIncomePlan = isBonusMonth ? regularIncome + 300000 : regularIncome;
+        const takeHomePlan = Math.round(grossIncomePlan * 0.84);
+        return {
+            yearMonth: `${year}/${monthIndex + 1}`,
+            grossIncomePlan,
+            takeHomePlan,
+            recurringExpensePlan: regularExpense,
+            balancePlan: takeHomePlan - regularExpense
+        };
+    });
+}).flat();
+
+const MOCK_SPECIAL_BUDGETS = [
+    { year: 2026, budgetAmount: 800000, spentAmount: 73000, remainingAmount: 727000 },
+    { year: 2027, budgetAmount: 800000, spentAmount: 0, remainingAmount: 800000 },
+    { year: 2028, budgetAmount: 900000, spentAmount: 0, remainingAmount: 900000 },
+    { year: 2029, budgetAmount: 1000000, spentAmount: 0, remainingAmount: 1000000 },
+    { year: 2030, budgetAmount: 1000000, spentAmount: 0, remainingAmount: 1000000 }
 ];
 
 const MOCK_ANNUAL_BUDGETS = [
@@ -158,6 +191,7 @@ let monthlyTrendChart = null;
 let categoryDistributionChart = null;
 let annualCashflowChart = null;
 let annualCategoryChart = null;
+let budgetProgressChart = null;
 
 // --- Initialize App ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -167,6 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initHeaderMenu();
     initMonthSelector();
     initAnnualReport();
+    initBudgetReport();
     initFormLogic();
     initCalculatorModal();
     initSettings();
@@ -392,7 +427,7 @@ function updateHeaderInfo(tabId) {
     
     // 月次の文脈を持つ画面だけ月選択を表示
     if (monthSelector) {
-        if (tabId === 'dashboard' || tabId === 'budget' || tabId === 'transactions') {
+        if (tabId === 'dashboard' || tabId === 'transactions') {
             monthSelector.style.display = 'flex';
         } else {
             monthSelector.style.display = 'none';
@@ -404,7 +439,7 @@ function updateHeaderInfo(tabId) {
             titleEl.textContent = 'MoneyManager';
             break;
         case 'budget':
-            titleEl.textContent = '予算と資産目標';
+            titleEl.textContent = '予算と資産レポート';
             break;
         case 'annual-report':
             titleEl.textContent = '年間レポート';
@@ -470,6 +505,39 @@ function initAnnualReport() {
     });
 }
 
+function initBudgetReport() {
+    document.getElementById('budget-prev-year').addEventListener('click', () => {
+        state.budgetReportYear -= 1;
+        state.specialBudgetYear = state.budgetReportYear;
+        renderBudgetView();
+    });
+
+    document.getElementById('budget-next-year').addEventListener('click', () => {
+        state.budgetReportYear += 1;
+        state.specialBudgetYear = state.budgetReportYear;
+        renderBudgetView();
+    });
+
+    document.querySelectorAll('[data-budget-metric]').forEach(button => {
+        button.addEventListener('click', () => {
+            state.budgetMetric = button.getAttribute('data-budget-metric');
+            document.querySelectorAll('[data-budget-metric]').forEach(metricButton => {
+                const isActive = metricButton === button;
+                metricButton.classList.toggle('active', isActive);
+                metricButton.setAttribute('aria-pressed', String(isActive));
+            });
+            renderBudgetProgressChart(getBudgetReportData(state.budgetReportYear));
+        });
+    });
+
+    document.getElementById('special-budget-years').addEventListener('click', event => {
+        const card = event.target.closest('[data-special-budget-year]');
+        if (!card) return;
+        state.specialBudgetYear = Number(card.getAttribute('data-special-budget-year'));
+        renderSpecialBudgetSection();
+    });
+}
+
 function refreshActiveViews() {
     if (document.getElementById('tab-dashboard').classList.contains('active')) {
         renderDashboard();
@@ -522,6 +590,8 @@ function applyApiData(data) {
     state.incomes = data.incomes || [];
     state.expenses = data.expenses || [];
     state.subscriptions = data.subscriptions || [];
+    state.budgetPlans = data.budgetPlans || [];
+    state.specialBudgets = data.specialBudgets || [];
     state.annualBudgets = data.annualBudgets || [];
     state.itemBudgets = data.itemBudgets || [];
     state.assetTargets = data.assetTargets || [];
@@ -641,6 +711,8 @@ function loadDemoMode() {
     state.incomes = localIncomes ? JSON.parse(localIncomes) : MOCK_INCOMES;
     state.expenses = localExpenses ? JSON.parse(localExpenses) : MOCK_EXPENSES;
     state.subscriptions = MOCK_SUBSCRIPTIONS;
+    state.budgetPlans = MOCK_BUDGET_PLANS;
+    state.specialBudgets = MOCK_SPECIAL_BUDGETS;
     state.annualBudgets = MOCK_ANNUAL_BUDGETS;
     state.itemBudgets = MOCK_ITEM_BUDGETS;
     state.assetTargets = MOCK_ASSET_TARGETS;
@@ -691,35 +763,10 @@ function escapeHtml(value) {
     }[char]));
 }
 
-function getFiscalYear(date) {
-    return date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
-}
-
-function getLatestAssetForMonth(monthDate) {
-    const monthlyAssets = state.assets
-        .filter(asset => {
-            const date = safeParseDate(asset.date);
-            return date.getTime() !== 0 && date.getFullYear() === monthDate.getFullYear() && date.getMonth() === monthDate.getMonth();
-        })
-        .sort((a, b) => safeParseDate(a.date) - safeParseDate(b.date));
-    return monthlyAssets.length > 0 ? monthlyAssets[monthlyAssets.length - 1] : null;
-}
-
 function getLatestAssetRecords() {
     return state.assets
         .filter(asset => safeParseDate(asset.date).getTime() !== 0)
         .sort((a, b) => safeParseDate(b.date) - safeParseDate(a.date));
-}
-
-function isSpecialExpense(expense, fiscalYearLabel) {
-    const rules = state.itemBudgets.filter(item => item.fiscalYear === fiscalYearLabel && item.budgetType === '特別');
-    if (rules.length === 0) {
-        return expense.category === '旅費' || Number(expense.amount || 0) >= 100000;
-    }
-    return rules.some(rule => {
-        const categoryMatches = rule.expenseCategory === '*' || rule.expenseCategory === expense.category;
-        return categoryMatches && Number(expense.amount || 0) >= Number(rule.minimumAmount || 0);
-    });
 }
 
 function setProgress(id, numerator, denominator, disabled = false) {
@@ -731,82 +778,304 @@ function setProgress(id, numerator, denominator, disabled = false) {
     track.classList.toggle('is-disabled', disabled);
 }
 
-function renderBudgetProgress(selectedAsset, currentExpenses, totalSubsMonthly) {
-    const selectedMonth = state.currentMonth;
-    const fiscalYear = getFiscalYear(selectedMonth);
-    const fiscalYearLabel = `FY${fiscalYear}`;
-    const annualBudget = state.annualBudgets.find(budget => budget.fiscalYear === fiscalYearLabel);
-    const assetTarget = state.assetTargets.find(target => Number(target.calendarYear) === selectedMonth.getFullYear());
-    const recurringActual = currentExpenses
-        .filter(expense => !isSpecialExpense(expense, fiscalYearLabel))
-        .reduce((sum, expense) => sum + Number(expense.amount || 0), 0) + totalSubsMonthly;
+function getBudgetReportData(year) {
+    const planByMonth = Array.from({ length: 12 }, () => ({ income: 0, expenses: 0, hasPlan: false }));
+    state.budgetPlans.forEach(plan => {
+        const parsed = parseYearMonth(plan.yearMonth);
+        if (!parsed || parsed.year !== year) return;
+        planByMonth[parsed.month] = {
+            income: Number(plan.grossIncomePlan || 0),
+            expenses: Number(plan.recurringExpensePlan || 0),
+            hasPlan: true
+        };
+    });
 
-    document.getElementById('budget-period-note').textContent = `${selectedMonth.getFullYear()}年${selectedMonth.getMonth() + 1}月時点 / ${fiscalYearLabel}`;
-    document.getElementById('monthly-budget-label').textContent = `${fiscalYearLabel} 月間経常支出`;
-    document.getElementById('annual-budget-label').textContent = `${fiscalYearLabel} 年度総支出`;
+    const actualIncomeByMonth = Array(12).fill(0);
+    state.incomes.forEach(income => {
+        const parsed = parseYearMonth(income.yearMonth);
+        if (parsed?.year === year) actualIncomeByMonth[parsed.month] += Number(income.grossPay || 0);
+    });
 
-    if (annualBudget) {
-        const monthlyRemaining = Number(annualBudget.recurringMonthly || 0) - recurringActual;
-        document.getElementById('monthly-budget-status').textContent = `${formatCurrency(recurringActual)} / ${formatCurrency(annualBudget.recurringMonthly)}`;
-        document.getElementById('monthly-budget-detail').textContent = monthlyRemaining >= 0
-            ? `残り ${formatCurrency(monthlyRemaining)}`
-            : `${formatCurrency(Math.abs(monthlyRemaining))} 超過`;
-        setProgress('monthly-budget-progress', recurringActual, annualBudget.recurringMonthly);
+    const actualExpenseByMonth = Array(12).fill(0);
+    state.expenses.forEach(expense => {
+        const parsed = getExpenseYearMonth(expense);
+        if (parsed?.year === year && !isSpecialBudgetExpense(expense)) {
+            actualExpenseByMonth[parsed.month] += Number(expense.amount || 0);
+        }
+    });
 
-        const fiscalStart = new Date(fiscalYear, 3, 1);
-        const selectedMonthEnd = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0, 23, 59, 59, 999);
-        const today = new Date();
-        const effectiveEnd = selectedMonthEnd > today ? today : selectedMonthEnd;
-        const fiscalExpenses = state.expenses.filter(expense => {
-            const date = safeParseDate(expense.date);
-            return date >= fiscalStart && date <= effectiveEnd;
-        });
-        const elapsedMonths = effectiveEnd < fiscalStart ? 0
-            : (effectiveEnd.getFullYear() - fiscalStart.getFullYear()) * 12 + effectiveEnd.getMonth() - fiscalStart.getMonth() + 1;
-        const annualActual = fiscalExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) + totalSubsMonthly * elapsedMonths;
-        const specialActual = fiscalExpenses
-            .filter(expense => isSpecialExpense(expense, fiscalYearLabel))
-            .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
-        const annualRemaining = Number(annualBudget.totalBudget || 0) - annualActual;
-        document.getElementById('annual-budget-status').textContent = `${formatCurrency(annualActual)} / ${formatCurrency(annualBudget.totalBudget)}`;
-        const annualGapText = annualRemaining >= 0
-            ? `残り ${formatCurrency(annualRemaining)}`
-            : `${formatCurrency(Math.abs(annualRemaining))} 超過`;
-        document.getElementById('annual-budget-detail').textContent = `${annualGapText} ・ 特別支出 ${formatCurrency(specialActual)} / ${formatCurrency(annualBudget.specialAnnual)} ・ 資産増加目標 ${formatCurrency(annualBudget.assetIncreaseTarget)}`;
-        setProgress('annual-budget-progress', annualActual, annualBudget.totalBudget);
+    const subscriptionMonthly = state.subscriptions
+        .filter(subscription => Number(subscription.year) === year)
+        .reduce((sum, subscription) => sum + Number(subscription.monthlyAmount || 0), 0);
+    actualExpenseByMonth.forEach((_, monthIndex) => {
+        actualExpenseByMonth[monthIndex] += subscriptionMonthly;
+    });
+
+    let cumulativeIncomePlan = 0;
+    let cumulativeIncomeActual = 0;
+    let cumulativeExpensePlan = 0;
+    let cumulativeExpenseActual = 0;
+    const months = planByMonth.map((plan, monthIndex) => {
+        cumulativeIncomePlan += plan.income;
+        cumulativeIncomeActual += actualIncomeByMonth[monthIndex];
+        cumulativeExpensePlan += plan.expenses;
+        cumulativeExpenseActual += actualExpenseByMonth[monthIndex];
+        return {
+            month: monthIndex + 1,
+            hasPlan: plan.hasPlan,
+            incomePlan: plan.income,
+            incomeActual: actualIncomeByMonth[monthIndex],
+            incomeDifference: actualIncomeByMonth[monthIndex] - plan.income,
+            expensePlan: plan.expenses,
+            expenseActual: actualExpenseByMonth[monthIndex],
+            expenseRemaining: plan.expenses - actualExpenseByMonth[monthIndex],
+            cumulativeIncomePlan,
+            cumulativeIncomeActual,
+            cumulativeExpensePlan,
+            cumulativeExpenseActual
+        };
+    });
+
+    return {
+        year,
+        months,
+        hasPlan: planByMonth.some(plan => plan.hasPlan),
+        incomePlan: months.reduce((sum, month) => sum + month.incomePlan, 0),
+        incomeActual: months.reduce((sum, month) => sum + month.incomeActual, 0),
+        expensePlan: months.reduce((sum, month) => sum + month.expensePlan, 0),
+        expenseActual: months.reduce((sum, month) => sum + month.expenseActual, 0)
+    };
+}
+
+function renderBudgetAssetSummary(year) {
+    const latestAsset = getLatestAssetRecords()[0] || null;
+    const assetTarget = state.assetTargets.find(target => Number(target.calendarYear) === year);
+    const currentAssetEl = document.getElementById('budget-current-assets');
+    const targetEl = document.getElementById('budget-asset-target');
+    const gapEl = document.getElementById('budget-asset-gap');
+    const gapLabelEl = document.getElementById('budget-asset-gap-label');
+    const rateEl = document.getElementById('budget-asset-rate');
+
+    currentAssetEl.textContent = latestAsset ? formatCurrency(Number(latestAsset.total || 0)) : '—';
+    document.getElementById('budget-assets-as-of').textContent = latestAsset ? formatAssetAsOfDate(latestAsset.date) : '記録なし';
+    document.getElementById('budget-asset-target-label').textContent = `${year}年末資産目標`;
+    targetEl.textContent = assetTarget ? formatCurrency(Number(assetTarget.targetAmount || 0)) : '—';
+
+    if (latestAsset && assetTarget) {
+        const currentAmount = Number(latestAsset.total || 0);
+        const targetAmount = Number(assetTarget.targetAmount || 0);
+        const gap = targetAmount - currentAmount;
+        gapLabelEl.textContent = gap >= 0 ? '目標まで' : '目標超過';
+        gapEl.textContent = formatCurrency(Math.abs(gap));
+        gapEl.className = `card-value${gap < 0 ? ' text-success' : ''}`;
+        rateEl.textContent = targetAmount > 0 ? `進捗 ${formatPercentage(currentAmount / targetAmount * 100)}` : '—';
+        setProgress('budget-asset-progress', currentAmount, targetAmount);
     } else {
-        document.getElementById('monthly-budget-status').textContent = `${fiscalYearLabel} 予算未設定`;
-        document.getElementById('monthly-budget-detail').textContent = '試験運用中。年度予算を追加すると自動集計します。';
-        document.getElementById('annual-budget-status').textContent = `${fiscalYearLabel} 予算未設定`;
-        document.getElementById('annual-budget-detail').textContent = 'スプレッドシート「年度予算」に1行追加してください。';
-        setProgress('monthly-budget-progress', 0, 0, true);
-        setProgress('annual-budget-progress', 0, 0, true);
-    }
-
-    document.getElementById('asset-target-label').textContent = `${selectedMonth.getFullYear()}年末 金融資産目標`;
-    if (assetTarget && selectedAsset) {
-        const gap = Number(assetTarget.targetAmount || 0) - Number(selectedAsset.total || 0);
-        document.getElementById('asset-target-status').textContent = `${formatCurrency(selectedAsset.total)} / ${formatCurrency(assetTarget.targetAmount)}`;
-        document.getElementById('asset-target-detail').textContent = gap > 0
-            ? `目標まで ${formatCurrency(gap)}`
-            : `目標を ${formatCurrency(Math.abs(gap))} 上回っています`;
-        setProgress('asset-target-progress', selectedAsset.total, assetTarget.targetAmount);
-    } else if (assetTarget) {
-        document.getElementById('asset-target-status').textContent = `目標 ${formatCurrency(assetTarget.targetAmount)}`;
-        document.getElementById('asset-target-detail').textContent = '選択月の資産記録がありません。';
-        setProgress('asset-target-progress', 0, assetTarget.targetAmount);
-    } else {
-        document.getElementById('asset-target-status').textContent = '目標未設定';
-        document.getElementById('asset-target-detail').textContent = 'スプレッドシート「資産目標」に追加してください。';
-        setProgress('asset-target-progress', 0, 0, true);
+        gapLabelEl.textContent = '目標まで';
+        gapEl.textContent = '—';
+        gapEl.className = 'card-value';
+        rateEl.textContent = '—';
+        setProgress('budget-asset-progress', 0, 0, true);
     }
 }
 
+function renderBudgetProgressSummary(report) {
+    const incomeDifference = report.incomeActual - report.incomePlan;
+    const expenseRemaining = report.expensePlan - report.expenseActual;
+    const incomeDiffEl = document.getElementById('budget-income-difference');
+    const expenseRemainingEl = document.getElementById('budget-expense-remaining');
+
+    document.getElementById('budget-income-status').textContent = formatCurrency(report.incomeActual);
+    document.getElementById('budget-expense-status').textContent = formatCurrency(report.expenseActual);
+    document.getElementById('budget-income-plan').textContent = report.hasPlan ? formatCurrency(report.incomePlan) : '—';
+    document.getElementById('budget-expense-plan').textContent = report.hasPlan ? formatCurrency(report.expensePlan) : '—';
+    incomeDiffEl.textContent = report.hasPlan ? `${incomeDifference >= 0 ? '+' : ''}${formatCurrency(incomeDifference)}` : '—';
+    incomeDiffEl.className = report.hasPlan ? (incomeDifference >= 0 ? 'text-success' : 'text-danger') : '';
+    expenseRemainingEl.textContent = report.hasPlan ? formatCurrency(Math.abs(expenseRemaining)) : '—';
+    expenseRemainingEl.className = report.hasPlan ? (expenseRemaining >= 0 ? 'text-success' : 'text-danger') : '';
+    expenseRemainingEl.closest('div').querySelector('dt').textContent = report.hasPlan && expenseRemaining < 0 ? '超過' : '残額';
+}
+
+function renderBudgetMonthlyTable(months) {
+    const tbody = document.getElementById('budget-monthly-tbody');
+    tbody.replaceChildren();
+
+    months.forEach(month => {
+        const incomeDifferenceText = month.hasPlan
+            ? `${month.incomeDifference >= 0 ? '+' : ''}${formatCurrency(month.incomeDifference)}`
+            : '—';
+        const expenseRemainingText = month.hasPlan ? formatCurrency(month.expenseRemaining) : '—';
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td data-label="月"><strong>${month.month}月</strong></td>
+            <td data-label="収入予定" class="text-right">${month.hasPlan ? formatCurrency(month.incomePlan) : '—'}</td>
+            <td data-label="収入実績" class="text-right">${formatCurrency(month.incomeActual)}</td>
+            <td data-label="収入差額" class="text-right ${month.hasPlan ? (month.incomeDifference >= 0 ? 'text-success' : 'text-danger') : ''}">${incomeDifferenceText}</td>
+            <td data-label="支出予定" class="text-right">${month.hasPlan ? formatCurrency(month.expensePlan) : '—'}</td>
+            <td data-label="支出実績" class="text-right">${formatCurrency(month.expenseActual)}</td>
+            <td data-label="支出残額" class="text-right ${month.hasPlan ? (month.expenseRemaining >= 0 ? 'text-success' : 'text-danger') : ''}">${expenseRemainingText}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function renderBudgetProgressChart(report) {
+    const ctx = document.getElementById('budget-progress-chart').getContext('2d');
+    const theme = getChartTheme();
+    const isExpense = state.budgetMetric === 'expense';
+    const planValues = report.months.map(month => isExpense ? month.cumulativeExpensePlan : month.cumulativeIncomePlan);
+    const actualValues = report.months.map(month => isExpense ? month.cumulativeExpenseActual : month.cumulativeIncomeActual);
+    const actualColor = isExpense ? theme.error : theme.primary;
+    const chartFont = { family: 'Roboto, "Noto Sans JP", sans-serif', size: 11 };
+
+    if (budgetProgressChart) budgetProgressChart.destroy();
+    budgetProgressChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: report.months.map(month => `${month.month}月`),
+            datasets: [
+                {
+                    label: '予定',
+                    data: planValues,
+                    borderColor: theme.outline,
+                    backgroundColor: colorWithAlpha(theme.outline, 0.08),
+                    borderWidth: 2,
+                    borderDash: [7, 5],
+                    pointRadius: 2,
+                    pointHoverRadius: 5,
+                    tension: 0.22,
+                    fill: false
+                },
+                {
+                    label: '実績',
+                    data: actualValues,
+                    borderColor: actualColor,
+                    backgroundColor: colorWithAlpha(actualColor, 0.1),
+                    borderWidth: 3,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    tension: 0.22,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'top', labels: { font: chartFont, color: theme.onSurfaceVariant } },
+                tooltip: { callbacks: { label: context => ` ${context.dataset.label}: ${formatCurrency(context.raw)}` } }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: chartFont, color: theme.onSurfaceVariant } },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: theme.outlineVariant },
+                    ticks: {
+                        font: chartFont,
+                        color: theme.onSurfaceVariant,
+                        callback: value => Math.abs(value) >= 10000 ? `${value / 10000}万円` : `${value}円`
+                    }
+                }
+            }
+        }
+    });
+}
+
+function isSpecialBudgetExpense(expense) {
+    return String(expense?.category || '').trim() === '旅費'
+        || String(expense?.description || '').includes('特別予算');
+}
+
+function getSpecialBudgetDetails(year) {
+    return state.expenses
+        .filter(expense => getExpenseYearMonth(expense)?.year === year && isSpecialBudgetExpense(expense))
+        .sort((a, b) => safeParseDate(b.date) - safeParseDate(a.date));
+}
+
+function renderSpecialBudgetSection() {
+    const container = document.getElementById('special-budget-years');
+    const rows = [...state.specialBudgets].sort((a, b) => Number(a.year) - Number(b.year));
+    const availableYears = rows.map(row => Number(row.year));
+    if (rows.length > 0 && !availableYears.includes(state.specialBudgetYear)) {
+        state.specialBudgetYear = availableYears.includes(state.budgetReportYear) ? state.budgetReportYear : availableYears[0];
+    }
+    container.replaceChildren();
+
+    if (rows.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'section-note';
+        empty.textContent = 'データなし';
+        container.appendChild(empty);
+    } else {
+        rows.forEach(budget => {
+            const year = Number(budget.year);
+            const budgetAmount = Number(budget.budgetAmount || 0);
+            const spentAmount = getSpecialBudgetDetails(year)
+                .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+            const remainingAmount = budgetAmount - spentAmount;
+            const percentage = budgetAmount > 0 ? Math.max(0, Math.min(100, spentAmount / budgetAmount * 100)) : 0;
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = `special-budget-year-card${year === state.specialBudgetYear ? ' active' : ''}`;
+            card.setAttribute('data-special-budget-year', String(year));
+            card.setAttribute('aria-pressed', String(year === state.specialBudgetYear));
+            card.innerHTML = `
+                <strong>${year}年</strong>
+                <span class="special-budget-year-values">
+                    <span><span>予算</span><b>${formatCurrency(budgetAmount)}</b></span>
+                    <span><span>消化</span><b>${formatCurrency(spentAmount)}</b></span>
+                    <span><span>${remainingAmount >= 0 ? '残額' : '超過'}</span><b>${formatCurrency(Math.abs(remainingAmount))}</b></span>
+                </span>
+                <span class="progress-track" role="progressbar" aria-label="${year}年の特別予算消化率" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(percentage)}"><span style="width: ${percentage}%"></span></span>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    const selectedYear = state.specialBudgetYear;
+    const selectedBudget = rows.find(row => Number(row.year) === selectedYear);
+    const details = getSpecialBudgetDetails(selectedYear);
+    const detailsTotal = details.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+    const tbody = document.getElementById('special-budget-details-tbody');
+    const reconcileEl = document.getElementById('special-budget-reconcile');
+    document.getElementById('special-budget-detail-title').textContent = `${selectedYear}年 特別予算の明細`;
+    tbody.replaceChildren();
+
+    if (details.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = '<td colspan="4" class="empty-state">明細なし</td>';
+        tbody.appendChild(row);
+    } else {
+        details.forEach(expense => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td data-label="日付">${escapeHtml(expense.date || '—')}</td>
+                <td data-label="項目">${escapeHtml(expense.category || '—')}</td>
+                <td data-label="備考">${escapeHtml(expense.description || '—')}</td>
+                <td data-label="金額" class="text-right">${formatCurrency(Number(expense.amount || 0))}</td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    const sheetSpentAmount = Number(selectedBudget?.spentAmount || 0);
+    const hasMismatch = !state.isDemoMode
+        && Boolean(selectedBudget)
+        && Math.round(sheetSpentAmount) !== Math.round(detailsTotal);
+    reconcileEl.classList.toggle('hidden', !hasMismatch);
+    reconcileEl.textContent = hasMismatch ? `シート消化額との差 ${formatCurrency(sheetSpentAmount - detailsTotal)}` : '';
+}
+
 function renderBudgetView() {
-    const totalSubsMonthly = state.subscriptions.reduce((sum, sub) => sum + Number(sub.monthlyAmount || 0), 0);
-    const selectedAsset = getLatestAssetForMonth(state.currentMonth);
-    const currentExpenses = filterExpensesByMonth(state.expenses, state.currentMonth);
-    renderBudgetProgress(selectedAsset, currentExpenses, totalSubsMonthly);
+    const report = getBudgetReportData(state.budgetReportYear);
+    document.getElementById('budget-year-display').textContent = `${state.budgetReportYear}年`;
+    renderBudgetAssetSummary(state.budgetReportYear);
+    renderBudgetProgressSummary(report);
+    renderBudgetMonthlyTable(report.months);
+    renderBudgetProgressChart(report);
+    renderSpecialBudgetSection();
 }
 
 function getAnnualReportData(year) {
