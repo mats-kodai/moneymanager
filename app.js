@@ -193,9 +193,12 @@ function initCategories() {
 }
 
 // --- Navigation ---
+const HEADER_MENU_MOBILE_QUERY = '(max-width: 920px)';
+
 function showMainTab(tabId) {
-    const primaryNavItems = document.querySelectorAll('.bottom-nav-item');
+    const primaryNavItems = document.querySelectorAll('.bottom-nav-item[data-tab]');
     const secondaryNavItems = document.querySelectorAll('.header-menu-item[data-tab]');
+    const menuButton = document.getElementById('header-menu-button');
     const tabPanes = document.querySelectorAll('.tab-pane');
     const targetPane = document.getElementById(`tab-${tabId}`);
     if (!targetPane) return;
@@ -206,6 +209,11 @@ function showMainTab(tabId) {
         if (isActive) item.setAttribute('aria-current', 'page');
         else item.removeAttribute('aria-current');
     });
+
+    const isSecondaryTab = [...secondaryNavItems].some(item => item.getAttribute('data-tab') === tabId);
+    menuButton.classList.toggle('active', isSecondaryTab);
+    if (isSecondaryTab) menuButton.setAttribute('aria-current', 'page');
+    else menuButton.removeAttribute('aria-current');
 
     secondaryNavItems.forEach(item => {
         const isActive = item.getAttribute('data-tab') === tabId;
@@ -237,7 +245,7 @@ function showMainTab(tabId) {
 }
 
 function initNavigation() {
-    const destinations = document.querySelectorAll('.bottom-nav-item, .header-menu-item[data-tab]');
+    const destinations = document.querySelectorAll('.bottom-nav-item[data-tab], .header-menu-item[data-tab]');
 
     destinations.forEach(item => {
         if (item.classList.contains('active')) item.setAttribute('aria-current', 'page');
@@ -290,17 +298,32 @@ function setHeaderMenuOpen(isOpen, restoreFocus = true) {
     const scrim = document.getElementById('header-menu-scrim');
     if (!button || !panel || !scrim) return;
 
+    if (!window.matchMedia(HEADER_MENU_MOBILE_QUERY).matches) {
+        panel.classList.remove('hidden');
+        scrim.classList.add('hidden');
+        button.setAttribute('aria-expanded', 'false');
+        button.setAttribute('aria-label', 'メニューを開く');
+        button.classList.remove('menu-open');
+        document.body.classList.remove('menu-open');
+        headerMenuReturnFocus = null;
+        return;
+    }
+
     if (isOpen) {
         headerMenuReturnFocus = document.activeElement;
         panel.classList.remove('hidden');
         scrim.classList.remove('hidden');
         button.setAttribute('aria-expanded', 'true');
+        button.setAttribute('aria-label', 'メニューを閉じる');
+        button.classList.add('menu-open');
         document.body.classList.add('menu-open');
         requestAnimationFrame(() => panel.querySelector('button')?.focus());
     } else {
         panel.classList.add('hidden');
         scrim.classList.add('hidden');
         button.setAttribute('aria-expanded', 'false');
+        button.setAttribute('aria-label', 'メニューを開く');
+        button.classList.remove('menu-open');
         document.body.classList.remove('menu-open');
         if (restoreFocus && headerMenuReturnFocus instanceof HTMLElement) headerMenuReturnFocus.focus();
         headerMenuReturnFocus = null;
@@ -316,6 +339,19 @@ function initHeaderMenu() {
     const closeButton = document.getElementById('header-menu-close');
     const scrim = document.getElementById('header-menu-scrim');
     const panel = document.getElementById('header-menu-panel');
+    const mobileQuery = window.matchMedia(HEADER_MENU_MOBILE_QUERY);
+
+    const updateMenuMode = () => {
+        if (mobileQuery.matches) {
+            panel.setAttribute('role', 'dialog');
+            panel.setAttribute('aria-modal', 'true');
+            if (button.getAttribute('aria-expanded') !== 'true') panel.classList.add('hidden');
+        } else {
+            panel.removeAttribute('role');
+            panel.removeAttribute('aria-modal');
+            setHeaderMenuOpen(false, false);
+        }
+    };
 
     button.addEventListener('click', () => {
         const isOpen = button.getAttribute('aria-expanded') === 'true';
@@ -344,6 +380,10 @@ function initHeaderMenu() {
             firstItem.focus();
         }
     });
+
+    if (typeof mobileQuery.addEventListener === 'function') mobileQuery.addEventListener('change', updateMenuMode);
+    else mobileQuery.addListener(updateMenuMode);
+    updateMenuMode();
 }
 
 function updateHeaderInfo(tabId) {

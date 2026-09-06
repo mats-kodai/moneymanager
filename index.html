@@ -11,7 +11,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <!-- Custom Style -->
-    <link rel="stylesheet" href="styles.css?v=4.3.0">
+    <link rel="stylesheet" href="styles.css?v=4.4.0">
 </head>
 <body>
     <!-- Self-contained interface icons: reliable even when external icon fonts are blocked. -->
@@ -56,9 +56,6 @@
                         <span id="current-month-display" aria-live="polite">—</span>
                         <button type="button" class="btn-icon" id="next-month" aria-label="次の月を表示"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg></button>
                     </div>
-                    <button type="button" class="btn-icon header-menu-button" id="header-menu-button" aria-label="メニューを開く" aria-controls="header-menu-panel" aria-expanded="false">
-                        <svg class="icon" aria-hidden="true"><use href="#icon-menu"></use></svg>
-                    </button>
                 </div>
             </header>
 
@@ -593,40 +590,59 @@
         </main>
     </div>
 
-    <!-- Header menu: secondary destinations and utility actions -->
+    <!-- Unified navigation: desktop sidebar and mobile bottom navigation -->
     <div id="header-menu-scrim" class="menu-scrim hidden"></div>
-    <aside id="header-menu-panel" class="header-menu-panel hidden" role="dialog" aria-modal="true" aria-labelledby="header-menu-title">
-        <div class="header-menu-heading">
-            <div>
+    <div class="navigation-shell">
+        <nav class="bottom-nav" aria-label="主要ナビゲーション">
+            <a href="#dashboard" class="bottom-nav-item active" data-tab="dashboard">
+                <span class="bottom-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-dashboard"></use></svg></span>
+                <span>ダッシュボード</span>
+            </a>
+            <a href="#transactions" class="bottom-nav-item" data-tab="transactions">
+                <span class="bottom-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-receipt"></use></svg></span>
+                <span>明細</span>
+            </a>
+            <a href="#add-transaction" class="bottom-nav-item" data-tab="add-transaction">
+                <span class="bottom-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-add"></use></svg></span>
+                <span>追加</span>
+            </a>
+            <button type="button" class="bottom-nav-item bottom-nav-menu" id="header-menu-button" aria-label="メニューを開く" aria-controls="header-menu-panel" aria-expanded="false">
+                <span class="bottom-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-menu"></use></svg></span>
+                <span>メニュー</span>
+            </button>
+        </nav>
+
+        <aside id="header-menu-panel" class="header-menu-panel hidden" aria-labelledby="header-menu-title">
+            <div class="header-menu-heading">
                 <h2 id="header-menu-title">メニュー</h2>
+                <button type="button" class="btn-icon" id="header-menu-close" aria-label="メニューを閉じる">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-close"></use></svg>
+                </button>
             </div>
-            <button type="button" class="btn-icon" id="header-menu-close" aria-label="メニューを閉じる">
-                <svg class="icon" aria-hidden="true"><use href="#icon-close"></use></svg>
-            </button>
-        </div>
-        <div class="header-menu-actions">
-            <button type="button" class="header-menu-item" id="sync-button">
-                <span class="header-menu-item-icon"><svg class="icon" aria-hidden="true"><use href="#icon-sync"></use></svg></span>
-                <span class="header-menu-item-copy"><strong>同期</strong><small id="last-sync-text">最終更新: 未同期</small></span>
-                <svg class="icon header-menu-arrow" aria-hidden="true"><use href="#icon-arrow"></use></svg>
-            </button>
-            <button type="button" class="header-menu-item" data-tab="annual-report">
-                <span class="header-menu-item-icon"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg></span>
-                <span class="header-menu-item-copy"><strong>年間レポート</strong></span>
-                <svg class="icon header-menu-arrow" aria-hidden="true"><use href="#icon-arrow"></use></svg>
-            </button>
-            <button type="button" class="header-menu-item" data-tab="budget">
-                <span class="header-menu-item-icon"><svg class="icon" aria-hidden="true"><use href="#icon-target"></use></svg></span>
-                <span class="header-menu-item-copy"><strong>予算と資産目標</strong></span>
-                <svg class="icon header-menu-arrow" aria-hidden="true"><use href="#icon-arrow"></use></svg>
-            </button>
-            <button type="button" class="header-menu-item" data-tab="settings">
-                <span class="header-menu-item-icon"><svg class="icon" aria-hidden="true"><use href="#icon-tune"></use></svg></span>
-                <span class="header-menu-item-copy"><strong>設定</strong></span>
-                <svg class="icon header-menu-arrow" aria-hidden="true"><use href="#icon-arrow"></use></svg>
-            </button>
-        </div>
-    </aside>
+            <div class="header-menu-actions">
+                <button type="button" class="header-menu-item" id="sync-button">
+                    <span class="header-menu-item-icon"><svg class="icon" aria-hidden="true"><use href="#icon-sync"></use></svg></span>
+                    <span class="header-menu-item-copy"><strong>同期</strong><small id="last-sync-text">最終更新: 未同期</small></span>
+                    <svg class="icon header-menu-arrow" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+                </button>
+                <button type="button" class="header-menu-item" data-tab="annual-report">
+                    <span class="header-menu-item-icon"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg></span>
+                    <span class="header-menu-item-copy"><strong>年間レポート</strong></span>
+                    <svg class="icon header-menu-arrow" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+                </button>
+                <button type="button" class="header-menu-item" data-tab="budget">
+                    <span class="header-menu-item-icon"><svg class="icon" aria-hidden="true"><use href="#icon-target"></use></svg></span>
+                    <span class="header-menu-item-copy"><strong>予算と資産目標</strong></span>
+                    <svg class="icon header-menu-arrow" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+                </button>
+                <button type="button" class="header-menu-item" data-tab="settings">
+                    <span class="header-menu-item-icon"><svg class="icon" aria-hidden="true"><use href="#icon-tune"></use></svg></span>
+                    <span class="header-menu-item-copy"><strong>設定</strong></span>
+                    <svg class="icon header-menu-arrow" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+                </button>
+            </div>
+        </aside>
+    </div>
 
     <!-- Social Insurance Calculator Modal -->
     <div id="calc-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="calc-modal-title">
@@ -674,23 +690,7 @@
         <span class="toast-message">メッセージ</span>
     </div>
 
-    <!-- Floating primary navigation for desktop and mobile -->
-    <nav class="bottom-nav" aria-label="主要ナビゲーション">
-        <a href="#dashboard" class="bottom-nav-item active" data-tab="dashboard">
-            <span class="bottom-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-dashboard"></use></svg></span>
-            <span>ダッシュボード</span>
-        </a>
-        <a href="#transactions" class="bottom-nav-item" data-tab="transactions">
-            <span class="bottom-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-receipt"></use></svg></span>
-            <span>明細</span>
-        </a>
-        <a href="#add-transaction" class="bottom-nav-item" data-tab="add-transaction">
-            <span class="bottom-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-add"></use></svg></span>
-            <span>追加</span>
-        </a>
-    </nav>
-
     <!-- Script File -->
-    <script src="app.js?v=4.3.0"></script>
+    <script src="app.js?v=4.4.0"></script>
 </body>
 </html>
