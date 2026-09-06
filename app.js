@@ -7,7 +7,7 @@ initialMonth.setDate(1);
 initialMonth.setHours(0, 0, 0, 0);
 
 const DATA_CACHE_KEY = 'moneymanager_api_cache_v1';
-const DATA_CACHE_VERSION = 2;
+const DATA_CACHE_VERSION = 3;
 const DATA_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const API_DATA_FIELDS = ['assets', 'incomes', 'expenses', 'subscriptions', 'budgetPlans', 'specialBudgets', 'annualBudgets', 'itemBudgets', 'assetTargets'];
 
@@ -333,26 +333,17 @@ function setHeaderMenuOpen(isOpen, restoreFocus = true) {
     const scrim = document.getElementById('header-menu-scrim');
     if (!button || !panel || !scrim) return;
 
-    if (!window.matchMedia(HEADER_MENU_MOBILE_QUERY).matches) {
-        panel.classList.remove('hidden');
-        scrim.classList.add('hidden');
-        button.setAttribute('aria-expanded', 'false');
-        button.setAttribute('aria-label', 'メニューを開く');
-        button.classList.remove('menu-open');
-        document.body.classList.remove('menu-open');
-        headerMenuReturnFocus = null;
-        return;
-    }
+    const isMobile = window.matchMedia(HEADER_MENU_MOBILE_QUERY).matches;
 
     if (isOpen) {
         headerMenuReturnFocus = document.activeElement;
         panel.classList.remove('hidden');
-        scrim.classList.remove('hidden');
+        scrim.classList.toggle('hidden', !isMobile);
         button.setAttribute('aria-expanded', 'true');
         button.setAttribute('aria-label', 'メニューを閉じる');
         button.classList.add('menu-open');
-        document.body.classList.add('menu-open');
-        requestAnimationFrame(() => panel.querySelector('button')?.focus());
+        document.body.classList.toggle('menu-open', isMobile);
+        requestAnimationFrame(() => panel.querySelector('.header-menu-item')?.focus());
     } else {
         panel.classList.add('hidden');
         scrim.classList.add('hidden');
@@ -384,8 +375,8 @@ function initHeaderMenu() {
         } else {
             panel.removeAttribute('role');
             panel.removeAttribute('aria-modal');
-            setHeaderMenuOpen(false, false);
         }
+        setHeaderMenuOpen(false, false);
     };
 
     button.addEventListener('click', () => {
@@ -401,7 +392,7 @@ function initHeaderMenu() {
             return;
         }
 
-        if (event.key !== 'Tab' || !isOpen) return;
+        if (event.key !== 'Tab' || !isOpen || !mobileQuery.matches) return;
         const focusableItems = [...panel.querySelectorAll('button:not([disabled]), a[href]')];
         if (focusableItems.length === 0) return;
         const firstItem = focusableItems[0];
@@ -439,7 +430,7 @@ function updateHeaderInfo(tabId) {
             titleEl.textContent = 'MoneyManager';
             break;
         case 'budget':
-            titleEl.textContent = '予算と資産レポート';
+            titleEl.textContent = '資産計画管理';
             break;
         case 'annual-report':
             titleEl.textContent = '年間レポート';
@@ -585,12 +576,37 @@ function formatLastSyncText(timestamp) {
     return `最終更新: ${formatted}`;
 }
 
+function normalizeBudgetPlans(plans) {
+    if (!Array.isArray(plans)) return [];
+
+    return plans.map(plan => {
+        const source = Array.isArray(plan) ? {
+            yearMonth: plan[0],
+            grossIncomePlan: plan[1],
+            takeHomePlan: plan[2],
+            recurringExpensePlan: plan[3],
+            balancePlan: plan[4]
+        } : (plan || {});
+        const rawYearMonth = source.yearMonth ?? source.date ?? source['年月'];
+        const parsed = parseYearMonth(rawYearMonth);
+        if (!parsed) return null;
+
+        return {
+            yearMonth: `${parsed.year}/${parsed.month + 1}`,
+            grossIncomePlan: Number(source.grossIncomePlan ?? source.incomePlan ?? source.income ?? source['収入'] ?? 0),
+            takeHomePlan: Number(source.takeHomePlan ?? source.takeHome ?? source['手取り'] ?? 0),
+            recurringExpensePlan: Number(source.recurringExpensePlan ?? source.expensePlan ?? source.recurringExpense ?? source['経常支出'] ?? 0),
+            balancePlan: Number(source.balancePlan ?? source.balance ?? source['収支'] ?? 0)
+        };
+    }).filter(Boolean);
+}
+
 function applyApiData(data) {
     state.assets = data.assets || [];
     state.incomes = data.incomes || [];
     state.expenses = data.expenses || [];
     state.subscriptions = data.subscriptions || [];
-    state.budgetPlans = data.budgetPlans || [];
+    state.budgetPlans = normalizeBudgetPlans(data.budgetPlans || data.budgetPlan || data.plans || []);
     state.specialBudgets = data.specialBudgets || [];
     state.annualBudgets = data.annualBudgets || [];
     state.itemBudgets = data.itemBudgets || [];
@@ -664,7 +680,7 @@ async function syncWithGas({ background = false, silent = false } = {}) {
     }
 
     try {
-        const apiUrl = state.gasUrl + (state.gasUrl.includes('?') ? '&' : '?') + 'api=1';
+        const apiUrl = state.gasUrl + (state.gasUrl.includes('?') ? '&' : '?') + `api=1&_=${Date.now()}`;
         const response = await fetch(apiUrl, { method: 'GET' });
         if (!response.ok) throw new Error('ネットワーク接続が失敗しました。');
         
@@ -799,16 +815,9 @@ function getBudgetReportData(year) {
     const actualExpenseByMonth = Array(12).fill(0);
     state.expenses.forEach(expense => {
         const parsed = getExpenseYearMonth(expense);
-        if (parsed?.year === year && !isSpecialBudgetExpense(expense)) {
+        if (parsed?.year === year) {
             actualExpenseByMonth[parsed.month] += Number(expense.amount || 0);
         }
-    });
-
-    const subscriptionMonthly = state.subscriptions
-        .filter(subscription => Number(subscription.year) === year)
-        .reduce((sum, subscription) => sum + Number(subscription.monthlyAmount || 0), 0);
-    actualExpenseByMonth.forEach((_, monthIndex) => {
-        actualExpenseByMonth[monthIndex] += subscriptionMonthly;
     });
 
     let cumulativeIncomePlan = 0;
@@ -1051,9 +1060,9 @@ function renderSpecialBudgetSection() {
         details.forEach(expense => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td data-label="日付">${escapeHtml(expense.date || '—')}</td>
+                <td data-label="日付">${escapeHtml(formatJapaneseDate(expense.date))}</td>
                 <td data-label="項目">${escapeHtml(expense.category || '—')}</td>
-                <td data-label="備考">${escapeHtml(expense.description || '—')}</td>
+                <td data-label="備考">${escapeHtml(expense.description || '')}</td>
                 <td data-label="金額" class="text-right">${formatCurrency(Number(expense.amount || 0))}</td>
             `;
             tbody.appendChild(row);
@@ -1430,12 +1439,13 @@ function renderExpenseLedger(container, expenses, emptyMessage) {
         groupExpenses.forEach(expense => {
             const entry = document.createElement('article');
             entry.className = 'expense-entry';
+            const description = String(expense.description || '').trim();
             entry.innerHTML = `
                 <div class="expense-entry-main">
                     <span class="expense-entry-category">${escapeHtml(expense.category || '項目なし')}</span>
                     <strong class="expense-entry-amount">-${formatCurrency(Number(expense.amount) || 0)}</strong>
                 </div>
-                <p class="expense-entry-note">${escapeHtml(expense.description || '備考なし')}</p>
+                ${description ? `<p class="expense-entry-note">${escapeHtml(description)}</p>` : ''}
             `;
             group.appendChild(entry);
         });
@@ -2476,6 +2486,10 @@ function formatPercentage(value) {
 // スプレッドシート内の年月表現のゆれを解決してパース
 function parseYearMonth(str) {
     if (!str) return null;
+    if (Number.isFinite(Number(str)) && Number(str) > 10000 && Number(str) < 100000) {
+        const date = new Date(Date.UTC(1899, 11, 30 + Math.floor(Number(str))));
+        return { year: date.getUTCFullYear(), month: date.getUTCMonth() };
+    }
     str = String(str).trim();
     
     // "2026年01月" パターン
@@ -2560,4 +2574,13 @@ function formatFullDateAndWeek(dateStr) {
 
     const dayOfWeek = ["日", "月", "火", "水", "木", "金", "土"][dateObj.getDay()];
     return `${dateObj.getFullYear()}年${dateObj.getMonth() + 1}月${dateObj.getDate()}日（${dayOfWeek}）`;
+}
+
+function formatJapaneseDate(dateStr) {
+    if (!dateStr) return '—';
+    const dateObj = safeParseDate(dateStr);
+    if (dateObj.getTime() === 0) return String(dateStr);
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    return `${dateObj.getFullYear()}年${month}月${day}日`;
 }

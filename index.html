@@ -11,7 +11,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <!-- Custom Style -->
-    <link rel="stylesheet" href="styles.css?v=4.5.0">
+    <link rel="stylesheet" href="styles.css?v=4.6.0">
 </head>
 <body>
     <!-- Self-contained interface icons: reliable even when external icon fonts are blocked. -->
@@ -207,7 +207,7 @@
             <!-- Tab: Annual budget and asset report -->
             <section id="tab-budget" class="tab-pane">
                 <div class="budget-report-toolbar">
-                    <div class="year-selector" role="group" aria-label="予算と資産レポートの表示年を選択">
+                    <div class="year-selector" role="group" aria-label="資産計画管理の表示年を選択">
                         <button type="button" class="btn-icon" id="budget-prev-year" aria-label="前年を表示"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg></button>
                         <span id="budget-year-display" aria-live="polite">—</span>
                         <button type="button" class="btn-icon" id="budget-next-year" aria-label="翌年を表示"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg></button>
@@ -235,7 +235,7 @@
                 </div>
 
                 <section class="budget-section" aria-labelledby="budget-progress-title">
-                    <div class="section-heading">
+                    <div class="budget-section-heading">
                         <h2 id="budget-progress-title">年間進捗</h2>
                     </div>
                     <div class="budget-progress-grid">
@@ -259,8 +259,8 @@
                 </section>
 
                 <section class="chart-card budget-report-section" aria-labelledby="budget-chart-title">
-                    <div class="card-header-flex">
-                        <h3 id="budget-chart-title">月別累積</h3>
+                    <div class="budget-section-heading has-controls">
+                        <h2 id="budget-chart-title">月別累積</h2>
                         <div class="chart-toggles budget-metric-toggle" role="group" aria-label="累積グラフの表示項目">
                             <button type="button" class="btn-toggle active" data-budget-metric="expense" aria-pressed="true">支出</button>
                             <button type="button" class="btn-toggle" data-budget-metric="income" aria-pressed="false">収入</button>
@@ -272,7 +272,9 @@
                 </section>
 
                 <section class="transactions-table-card budget-report-section" aria-labelledby="budget-monthly-title">
-                    <h3 id="budget-monthly-title">月別進捗</h3>
+                    <div class="budget-section-heading">
+                        <h2 id="budget-monthly-title">月別進捗</h2>
+                    </div>
                     <div class="responsive-table-wrapper budget-table-wrapper">
                         <table class="data-table responsive-detail-table budget-monthly-table">
                             <thead>
@@ -292,15 +294,15 @@
                 </section>
 
                 <section class="budget-section special-budget-section" aria-labelledby="special-budget-title">
-                    <div class="section-heading">
+                    <div class="budget-section-heading">
                         <h2 id="special-budget-title">特別予算</h2>
                     </div>
                     <div class="special-budget-years" id="special-budget-years" aria-label="特別予算の年を選択"></div>
                 </section>
 
                 <section class="transactions-table-card budget-report-section special-budget-details" aria-labelledby="special-budget-detail-title">
-                    <div class="detail-header">
-                        <h3 id="special-budget-detail-title">特別予算の明細</h3>
+                    <div class="budget-section-heading has-note">
+                        <h2 id="special-budget-detail-title">特別予算の明細</h2>
                         <span class="section-note hidden" id="special-budget-reconcile"></span>
                     </div>
                     <div class="responsive-table-wrapper budget-table-wrapper">
@@ -703,7 +705,7 @@
                 </button>
                 <button type="button" class="header-menu-item" data-tab="budget">
                     <span class="header-menu-item-icon"><svg class="icon" aria-hidden="true"><use href="#icon-target"></use></svg></span>
-                    <span class="header-menu-item-copy"><strong>予算と資産レポート</strong></span>
+                    <span class="header-menu-item-copy"><strong>資産計画管理</strong></span>
                     <svg class="icon header-menu-arrow" aria-hidden="true"><use href="#icon-arrow"></use></svg>
                 </button>
                 <button type="button" class="header-menu-item" data-tab="settings">
@@ -762,6 +764,6 @@
     </div>
 
     <!-- Script File -->
-    <script src="app.js?v=4.5.0"></script>
+    <script src="app.js?v=4.6.0"></script>
 </body>
 </html>

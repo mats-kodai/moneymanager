@@ -102,18 +102,27 @@ function doGet(e) {
 
     // 5. 予算計画（1行＝1か月の予定値）
     const budgetPlanSheet = ss.getSheetByName(SHEET_BUDGET_PLANS);
-    const budgetPlanRows = budgetPlanSheet ? budgetPlanSheet.getDataRange().getValues() : [];
+    const budgetPlanRange = budgetPlanSheet ? budgetPlanSheet.getDataRange() : null;
+    const budgetPlanRows = budgetPlanRange ? budgetPlanRange.getValues() : [];
+    const budgetPlanDisplayRows = budgetPlanRange ? budgetPlanRange.getDisplayValues() : [];
     const budgetPlans = [];
+    const budgetPlanHeaders = budgetPlanDisplayRows[0] || [];
+    const yearMonthColumn = findHeaderColumn(budgetPlanHeaders, ["年月"], 0);
+    const incomeColumn = findHeaderColumn(budgetPlanHeaders, ["収入"], 1);
+    const takeHomeColumn = findHeaderColumn(budgetPlanHeaders, ["手取り"], 2);
+    const expenseColumn = findHeaderColumn(budgetPlanHeaders, ["経常支出"], 3);
+    const balanceColumn = findHeaderColumn(budgetPlanHeaders, ["収支"], 4);
     for (let i = 1; i < budgetPlanRows.length; i++) {
       const row = budgetPlanRows[i];
-      const yearMonth = formatYearMonth(row[0]);
+      const displayRow = budgetPlanDisplayRows[i] || [];
+      const yearMonth = formatYearMonth(displayRow[yearMonthColumn] || row[yearMonthColumn]);
       if (!yearMonth) continue;
       budgetPlans.push({
         yearMonth: yearMonth,
-        grossIncomePlan: Number(row[1] || 0),
-        takeHomePlan: Number(row[2] || 0),
-        recurringExpensePlan: Number(row[3] || 0),
-        balancePlan: Number(row[4] || 0)
+        grossIncomePlan: toNumber(row[incomeColumn]),
+        takeHomePlan: toNumber(row[takeHomeColumn]),
+        recurringExpensePlan: toNumber(row[expenseColumn]),
+        balancePlan: toNumber(row[balanceColumn])
       });
     }
 
@@ -305,8 +314,29 @@ function formatYearMonth(dateVal) {
     return `${dateVal.getFullYear()}/${dateVal.getMonth() + 1}`;
   }
 
+  if (typeof dateVal === "number" && isFinite(dateVal) && dateVal > 10000 && dateVal < 100000) {
+    const serialDate = new Date(Date.UTC(1899, 11, 30 + Math.floor(dateVal)));
+    return `${serialDate.getUTCFullYear()}/${serialDate.getUTCMonth() + 1}`;
+  }
+
   const match = String(dateVal || "").trim().match(/^(\d{4})[年/\-](\d{1,2})/);
   return match ? `${match[1]}/${Number(match[2])}` : "";
+}
+
+function findHeaderColumn(headers, candidates, fallbackIndex) {
+  const normalizedHeaders = headers.map(value => String(value || "").replace(/\s/g, ""));
+  for (let i = 0; i < candidates.length; i++) {
+    const index = normalizedHeaders.indexOf(String(candidates[i]).replace(/\s/g, ""));
+    if (index >= 0) return index;
+  }
+  return fallbackIndex;
+}
+
+function toNumber(value) {
+  if (typeof value === "number") return isFinite(value) ? value : 0;
+  const normalized = String(value || "").replace(/[¥￥,\s]/g, "");
+  const parsed = Number(normalized);
+  return isFinite(parsed) ? parsed : 0;
 }
 
 function initializeSheets(ss) {

@@ -148,7 +148,7 @@ a { color: inherit; }
 .bottom-nav-icon { display: grid; width: 44px; height: 40px; place-items: center; border-radius: var(--md-sys-shape-corner-full); transition: width var(--md-sys-motion-duration-medium) var(--md-sys-motion-spring-spatial), background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-spring-effects); }
 .bottom-nav-icon .icon { width: 23px; height: 23px; }
 .bottom-nav-item.active .bottom-nav-icon, .bottom-nav-menu.menu-open .bottom-nav-icon { background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); }
-.bottom-nav-menu { display: none; }
+.bottom-nav-menu { display: grid; }
 
 .bottom-nav-item:active, .header-menu-item:active, .link-more:active, .btn-range:active,
 .btn-toggle:active, .sub-tab-btn:active, .toggle-form-btn:active, .btn:active, .btn-icon:active { transform: scale(.97); }
@@ -310,7 +310,7 @@ a { color: inherit; }
     border-top: 1px solid var(--md-sys-color-outline-variant);
 }
 
-.header-menu-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 10px; }
+.header-menu-heading { display: none; align-items: center; justify-content: space-between; gap: 16px; padding: 0 10px; }
 .header-menu-heading h2 { margin: 0; font-family: var(--md-ref-typeface-brand); font-size: .75rem; font-weight: 700; color: var(--md-sys-color-on-surface-variant); }
 .header-menu-heading .btn-icon { display: none; }
 .header-menu-actions { display: grid; gap: 4px; margin-top: 8px; }
@@ -343,7 +343,7 @@ a { color: inherit; }
 body.menu-open { overflow: hidden; }
 
 @keyframes menu-enter {
-    from { opacity: 0; transform: translateY(-12px) scale(.94); }
+    from { opacity: 0; transform: translateY(12px) scale(.94); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
@@ -413,6 +413,8 @@ body.menu-open { overflow: hidden; }
 #annual-year-display, #budget-year-display { min-width: 96px; text-align: center; font-size: .875rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
 .section-heading h2 { margin: 0; font-family: var(--md-ref-typeface-brand); font-size: 1.375rem; font-weight: 500; line-height: 1.3; }
+.budget-section-heading { display: flex; min-height: 32px; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.budget-section-heading h2 { margin: 0; color: var(--md-sys-color-on-surface); font-family: var(--md-ref-typeface-brand); font-size: 1.375rem; font-weight: 500; line-height: 1.3; }
 .section-note { margin: 0; color: var(--md-sys-color-on-surface-variant); font-size: .75rem; }
 .budget-asset-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }
 .budget-report-card { min-height: 154px; }
@@ -429,9 +431,9 @@ body.menu-open { overflow: hidden; }
 .progress-track span { display: block; width: 0; height: 100%; background: var(--md-sys-color-primary); border-radius: inherit; transition: width var(--md-sys-motion-duration-medium) var(--md-sys-motion-spring-spatial); }
 .progress-track.is-disabled span { width: 100% !important; background: var(--md-sys-color-outline-variant); }
 .budget-report-section { margin-bottom: 24px; }
-.budget-progress-chart-wrapper { height: 360px; margin-top: 18px; }
+.budget-progress-chart-wrapper { height: 360px; margin-top: 0; }
 .budget-metric-toggle .btn-toggle { height: 44px; padding: 0 18px; }
-.budget-table-wrapper { margin-top: 16px; }
+.budget-table-wrapper { margin-top: 0; }
 .budget-monthly-table { min-width: 840px; }
 .special-budget-years { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
 .special-budget-year-card { display: grid; min-width: 0; gap: 10px; padding: 18px; background: var(--md-sys-color-surface-container); color: var(--md-sys-color-on-surface); border: 1px solid transparent; border-radius: var(--md-sys-shape-corner-large); cursor: pointer; text-align: left; transition: background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-spring-effects), border-color var(--md-sys-motion-duration-short) var(--md-sys-motion-spring-effects), transform var(--md-sys-motion-duration-medium) var(--md-sys-motion-spring-spatial); }
@@ -570,6 +572,7 @@ tbody tr:hover { background: var(--md-sys-color-surface-container-high); }
 .filter-controls, .filter-group, .settings-actions { display: flex; align-items: center; gap: 12px; }
 .filter-group label { color: var(--md-sys-color-on-surface-variant); font-size: .875rem; font-weight: 600; white-space: nowrap; }
 .transactions-table-card { padding: 6px 20px 0; }
+.transactions-table-card.budget-report-section { padding: 24px; }
 .main-table { min-width: 720px; }
 .annual-monthly-table { min-width: 640px; }
 .table-footer { padding: 14px 12px 18px; color: var(--md-sys-color-on-surface-variant); font-size: .75rem; }
@@ -708,11 +711,12 @@ input:focus, select:focus, textarea:focus { border: 2px solid var(--md-sys-color
     .bottom-nav-menu { display: grid; }
     .header-menu-panel {
         position: fixed;
-        top: 20px;
+        top: auto;
         right: 20px;
+        bottom: calc(112px + env(safe-area-inset-bottom));
         z-index: 90;
         width: min(380px, calc(100vw - 40px));
-        max-height: calc(100vh - 40px);
+        max-height: calc(100vh - 136px - env(safe-area-inset-bottom));
         margin: 0;
         padding: 20px;
         overflow-y: auto;
@@ -720,9 +724,10 @@ input:focus, select:focus, textarea:focus { border: 2px solid var(--md-sys-color
         border: 1px solid var(--md-sys-color-outline-variant);
         border-radius: var(--md-sys-shape-corner-extra-large);
         box-shadow: 0 18px 48px color-mix(in srgb, var(--md-sys-color-inverse-surface) 18%, transparent);
+        transform-origin: bottom right;
         animation: menu-enter var(--md-sys-motion-duration-medium) var(--md-sys-motion-spring-spatial);
     }
-    .header-menu-heading { padding: 0; }
+    .header-menu-heading { display: flex; padding: 0; }
     .header-menu-heading h2 { color: var(--md-sys-color-on-surface); font-size: 1.5rem; font-weight: 500; }
     .header-menu-heading .btn-icon { display: grid; }
     .header-menu-actions { margin-top: 18px; }
@@ -755,9 +760,11 @@ input:focus, select:focus, textarea:focus { border: 2px solid var(--md-sys-color
     .budget-progress-card { padding: 16px; border-radius: var(--md-sys-shape-corner-medium); }
     .budget-report-section { margin-bottom: 16px; }
     .budget-progress-chart-wrapper { height: 300px; }
+    .budget-section-heading.has-controls { align-items: stretch; flex-direction: column; }
     .special-budget-years { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
     .special-budget-year-card { padding: 14px; border-radius: var(--md-sys-shape-corner-medium); }
     .special-budget-details { padding: 18px 14px; }
+    .transactions-table-card.budget-report-section { padding: 18px; }
     .form-layout, .settings-grid { grid-template-columns: 1fr; gap: 16px; margin-bottom: 16px; }
     .chart-card, .detail-card, .form-card, .settings-card { padding: 18px; border-radius: var(--md-sys-shape-corner-large); }
     .dashboard-section-card { margin-bottom: 16px; }
@@ -814,11 +821,12 @@ input:focus, select:focus, textarea:focus { border: 2px solid var(--md-sys-color
     .page-title-section h1 { font-size: 1.45rem; }
     .month-selector { min-width: 0; }
     #current-month-display { min-width: 0; font-size: .8125rem; }
-    .header-menu-panel { top: 12px; right: 12px; left: 12px; width: auto; padding: 18px; }
+    .header-menu-panel { top: auto; right: 12px; bottom: calc(96px + env(safe-area-inset-bottom)); left: auto; width: min(340px, calc(100vw - 24px)); padding: 18px; }
     .bottom-nav { bottom: max(12px, env(safe-area-inset-bottom)); width: calc(100% - 24px); min-height: 72px; padding: 6px; }
     .bottom-nav-item { min-height: 58px; padding-right: 2px; padding-left: 2px; font-size: .625rem; }
     .chart-range-selector .btn-range { font-size: .75rem; }
     .section-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
+    .budget-section-heading.has-note { align-items: flex-start; flex-direction: column; }
     .budget-progress-card > strong { font-size: 1.25rem; }
     .special-budget-years { grid-template-columns: 1fr; }
     .asset-details-list { padding: 14px; }
