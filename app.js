@@ -29,7 +29,10 @@ const state = {
     annualReportYear: initialMonth.getFullYear(),
     budgetReportYear: initialMonth.getFullYear(),
     budgetMetric: 'expense',
-    specialBudgetYear: initialMonth.getFullYear(),
+    budgetView: 'overview',
+    budgetMonth: initialMonth.getMonth() + 1,
+    specialBudgetMonth: 'all',
+    specialBudgetPage: 0,
     showAssetsBreakdown: false, // 資産の内訳表示フラグ
     assetRange: 'all',          // 資産グラフの表示期間 ('all', '1m', '3m', '6m', '1y')
     isDemoMode: true,
@@ -499,13 +502,13 @@ function initAnnualReport() {
 function initBudgetReport() {
     document.getElementById('budget-prev-year').addEventListener('click', () => {
         state.budgetReportYear -= 1;
-        state.specialBudgetYear = state.budgetReportYear;
+        state.specialBudgetPage = 0;
         renderBudgetView();
     });
 
     document.getElementById('budget-next-year').addEventListener('click', () => {
         state.budgetReportYear += 1;
-        state.specialBudgetYear = state.budgetReportYear;
+        state.specialBudgetPage = 0;
         renderBudgetView();
     });
 
@@ -521,10 +524,48 @@ function initBudgetReport() {
         });
     });
 
-    document.getElementById('special-budget-years').addEventListener('click', event => {
-        const card = event.target.closest('[data-special-budget-year]');
-        if (!card) return;
-        state.specialBudgetYear = Number(card.getAttribute('data-special-budget-year'));
+    document.getElementById('budget-year-select').addEventListener('change', event => {
+        state.budgetReportYear = Number(event.target.value);
+        state.specialBudgetPage = 0;
+        renderBudgetView();
+    });
+
+    const viewButtons = [...document.querySelectorAll('[data-budget-view]')];
+    viewButtons.forEach((button, index) => {
+        button.addEventListener('click', () => {
+            state.budgetView = button.dataset.budgetView;
+            renderBudgetView();
+        });
+        button.addEventListener('keydown', event => {
+            let nextIndex;
+            if (event.key === 'ArrowRight') nextIndex = (index + 1) % viewButtons.length;
+            else if (event.key === 'ArrowLeft') nextIndex = (index + viewButtons.length - 1) % viewButtons.length;
+            else if (event.key === 'Home') nextIndex = 0;
+            else if (event.key === 'End') nextIndex = viewButtons.length - 1;
+            else return;
+            event.preventDefault();
+            viewButtons[nextIndex].focus();
+            viewButtons[nextIndex].click();
+        });
+    });
+
+    document.getElementById('budget-month-picker').addEventListener('click', event => {
+        const button = event.target.closest('[data-budget-month]');
+        if (!button) return;
+        state.budgetMonth = Number(button.dataset.budgetMonth);
+        renderBudgetMonthDetail(getBudgetReportData(state.budgetReportYear).months);
+    });
+    document.getElementById('special-budget-month').addEventListener('change', event => {
+        state.specialBudgetMonth = event.target.value;
+        state.specialBudgetPage = 0;
+        renderSpecialBudgetSection();
+    });
+    document.getElementById('special-budget-prev-page').addEventListener('click', () => {
+        state.specialBudgetPage -= 1;
+        renderSpecialBudgetSection();
+    });
+    document.getElementById('special-budget-next-page').addEventListener('click', () => {
+        state.specialBudgetPage += 1;
         renderSpecialBudgetSection();
     });
 }
@@ -1004,87 +1045,111 @@ function getSpecialBudgetDetails(year) {
 }
 
 function renderSpecialBudgetSection() {
-    const container = document.getElementById('special-budget-years');
-    const rows = [...state.specialBudgets].sort((a, b) => Number(a.year) - Number(b.year));
-    const availableYears = rows.map(row => Number(row.year));
-    if (rows.length > 0 && !availableYears.includes(state.specialBudgetYear)) {
-        state.specialBudgetYear = availableYears.includes(state.budgetReportYear) ? state.budgetReportYear : availableYears[0];
-    }
-    container.replaceChildren();
+    const year = state.budgetReportYear;
+    const budget = state.specialBudgets.find(row => Number(row.year) === year);
+    const details = getSpecialBudgetDetails(year);
+    const spentAmount = details.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+    const budgetAmount = Number(budget?.budgetAmount || 0);
+    const remainingAmount = budgetAmount - spentAmount;
+    const percentage = budgetAmount > 0 ? Math.max(0, Math.min(100, spentAmount / budgetAmount * 100)) : 0;
+    document.getElementById('special-budget-title').textContent = `${year}年の特別予算`;
+    document.getElementById('special-budget-summary').innerHTML = `
+        <div class="special-budget-balance${budget && remainingAmount < 0 ? ' is-over-budget' : ''}">
+            <span class="budget-line-label">${budget && remainingAmount < 0 ? '予算超過' : 'あと使える金額'}</span>
+            <strong>${budget ? formatCurrency(Math.abs(remainingAmount)) : '—'}</strong>
+            <dl class="budget-compare-list">
+                <div><dt>年間予算</dt><dd>${budget ? formatCurrency(budgetAmount) : '未設定'}</dd></div>
+                <div><dt>使用済み</dt><dd>${formatCurrency(spentAmount)}</dd></div>
+            </dl>
+            <div class="progress-track${budget ? '' : ' is-disabled'}" role="progressbar" aria-label="特別予算の消化率" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(percentage)}"><span style="width: ${percentage}%"></span></div>
+        </div>`;
 
-    if (rows.length === 0) {
-        const empty = document.createElement('p');
-        empty.className = 'section-note';
-        empty.textContent = 'データなし';
-        container.appendChild(empty);
-    } else {
-        rows.forEach(budget => {
-            const year = Number(budget.year);
-            const budgetAmount = Number(budget.budgetAmount || 0);
-            const spentAmount = getSpecialBudgetDetails(year)
-                .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
-            const remainingAmount = budgetAmount - spentAmount;
-            const percentage = budgetAmount > 0 ? Math.max(0, Math.min(100, spentAmount / budgetAmount * 100)) : 0;
-            const card = document.createElement('button');
-            card.type = 'button';
-            card.className = `special-budget-year-card${year === state.specialBudgetYear ? ' active' : ''}`;
-            card.setAttribute('data-special-budget-year', String(year));
-            card.setAttribute('aria-pressed', String(year === state.specialBudgetYear));
-            card.innerHTML = `
-                <strong>${year}年</strong>
-                <span class="special-budget-year-values">
-                    <span><span>予算</span><b>${formatCurrency(budgetAmount)}</b></span>
-                    <span><span>消化</span><b>${formatCurrency(spentAmount)}</b></span>
-                    <span><span>${remainingAmount >= 0 ? '残額' : '超過'}</span><b>${formatCurrency(Math.abs(remainingAmount))}</b></span>
-                </span>
-                <span class="progress-track" role="progressbar" aria-label="${year}年の特別予算消化率" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(percentage)}"><span style="width: ${percentage}%"></span></span>
-            `;
-            container.appendChild(card);
-        });
+    const monthSelect = document.getElementById('special-budget-month');
+    if (!monthSelect.options.length) {
+        monthSelect.add(new Option('すべての月', 'all'));
+        for (let month = 1; month <= 12; month += 1) monthSelect.add(new Option(`${month}月`, String(month)));
     }
+    monthSelect.value = state.specialBudgetMonth;
+    const filtered = state.specialBudgetMonth === 'all' ? details
+        : details.filter(expense => getExpenseYearMonth(expense)?.month + 1 === Number(state.specialBudgetMonth));
+    const pageSize = 6;
+    const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+    state.specialBudgetPage = Math.max(0, Math.min(state.specialBudgetPage, pageCount - 1));
+    const start = state.specialBudgetPage * pageSize;
+    renderExpenseLedger(document.getElementById('special-budget-ledger'), filtered.slice(start, start + pageSize), '選択した期間の明細はありません。');
+    document.getElementById('special-budget-filter-total').textContent = `${year}年${state.specialBudgetMonth === 'all' ? '全体' : `${state.specialBudgetMonth}月`} · ${filtered.length}件 · 合計 ${formatCurrency(filtered.reduce((sum, expense) => sum + Number(expense.amount || 0), 0))}`;
+    document.getElementById('special-budget-page-status').textContent = filtered.length
+        ? `${start + 1}–${Math.min(start + pageSize, filtered.length)}件 / ${filtered.length}件` : '0件';
+    document.getElementById('special-budget-prev-page').disabled = state.specialBudgetPage === 0;
+    document.getElementById('special-budget-next-page').disabled = state.specialBudgetPage >= pageCount - 1;
+    document.querySelector('.special-budget-pagination').hidden = filtered.length <= pageSize;
 
-    const selectedYear = state.specialBudgetYear;
-    const selectedBudget = rows.find(row => Number(row.year) === selectedYear);
-    const details = getSpecialBudgetDetails(selectedYear);
-    const detailsTotal = details.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
-    const tbody = document.getElementById('special-budget-details-tbody');
     const reconcileEl = document.getElementById('special-budget-reconcile');
-    document.getElementById('special-budget-detail-title').textContent = `${selectedYear}年 特別予算の明細`;
-    tbody.replaceChildren();
+    const sheetSpentAmount = Number(budget?.spentAmount || 0);
+    const hasMismatch = !state.isDemoMode && Boolean(budget) && Math.round(sheetSpentAmount) !== Math.round(spentAmount);
+    reconcileEl.classList.toggle('hidden', !hasMismatch);
+    reconcileEl.textContent = hasMismatch ? `シート消化額との差 ${formatCurrency(sheetSpentAmount - spentAmount)}` : '';
+}
 
-    if (details.length === 0) {
-        const row = document.createElement('tr');
-        row.innerHTML = '<td colspan="4" class="empty-state">明細なし</td>';
-        tbody.appendChild(row);
-    } else {
-        details.forEach(expense => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td data-label="日付">${escapeHtml(formatJapaneseDate(expense.date))}</td>
-                <td data-label="項目">${escapeHtml(expense.category || '—')}</td>
-                <td data-label="備考">${escapeHtml(expense.description || '')}</td>
-                <td data-label="金額" class="text-right">${formatCurrency(Number(expense.amount || 0))}</td>
-            `;
-            tbody.appendChild(row);
+function renderBudgetMonthDetail(months) {
+    const picker = document.getElementById('budget-month-picker');
+    if (!picker.children.length) {
+        months.forEach(month => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.budgetMonth = String(month.month);
+            button.textContent = `${month.month}月`;
+            picker.appendChild(button);
         });
     }
-
-    const sheetSpentAmount = Number(selectedBudget?.spentAmount || 0);
-    const hasMismatch = !state.isDemoMode
-        && Boolean(selectedBudget)
-        && Math.round(sheetSpentAmount) !== Math.round(detailsTotal);
-    reconcileEl.classList.toggle('hidden', !hasMismatch);
-    reconcileEl.textContent = hasMismatch ? `シート消化額との差 ${formatCurrency(sheetSpentAmount - detailsTotal)}` : '';
+    picker.querySelectorAll('button').forEach(button => {
+        button.setAttribute('aria-pressed', String(Number(button.dataset.budgetMonth) === state.budgetMonth));
+    });
+    const month = months.find(item => item.month === state.budgetMonth);
+    const metrics = [
+        { label: '額面収入', plan: month.incomePlan, actual: month.incomeActual, difference: month.incomeDifference, differenceLabel: '予定との差額' },
+        { label: '支出', plan: month.expensePlan, actual: month.expenseActual, difference: month.expenseRemaining, differenceLabel: month.hasPlan && month.expenseRemaining < 0 ? '予算超過' : '予算残額' }
+    ];
+    document.getElementById('budget-month-detail').innerHTML = `
+        <h3 class="budget-month-detail-title">${state.budgetReportYear}年${month.month}月</h3>
+        ${!month.hasPlan ? '<p class="section-note">この月の予定額は未設定です。</p>' : ''}
+        <div class="budget-month-metrics">${metrics.map((metric, index) => `
+            <section class="budget-month-metric" aria-label="${metric.label}">
+                <h4>${metric.label}</h4>
+                <dl class="budget-month-values">
+                    <div><dt>予定</dt><dd>${month.hasPlan ? formatCurrency(metric.plan) : '—'}</dd></div>
+                    <div><dt>実績</dt><dd>${formatCurrency(metric.actual)}</dd></div>
+                    <div><dt>${metric.differenceLabel}</dt><dd class="${month.hasPlan ? metric.difference >= 0 ? 'text-success' : 'text-danger' : ''}">${month.hasPlan ? `${index === 0 && metric.difference >= 0 ? '+' : ''}${formatCurrency(index === 1 ? Math.abs(metric.difference) : metric.difference)}` : '—'}</dd></div>
+                </dl>
+            </section>`).join('')}</div>`;
 }
 
 function renderBudgetView() {
+    const years = new Set([initialMonth.getFullYear(), state.budgetReportYear]);
+    state.budgetPlans.forEach(plan => years.add(parseYearMonth(plan.yearMonth)?.year));
+    state.specialBudgets.forEach(budget => years.add(Number(budget.year)));
+    state.assetTargets.forEach(target => years.add(Number(target.calendarYear)));
+    const yearSelect = document.getElementById('budget-year-select');
+    yearSelect.replaceChildren(...[...years].filter(year => Number.isInteger(year) && year > 0).sort((a, b) => a - b)
+        .map(year => new Option(`${year}年`, String(year))));
+    yearSelect.value = String(state.budgetReportYear);
+    document.querySelectorAll('[data-budget-view]').forEach(button => {
+        const active = button.dataset.budgetView === state.budgetView;
+        button.setAttribute('aria-selected', String(active));
+        button.tabIndex = active ? 0 : -1;
+        document.getElementById(button.getAttribute('aria-controls')).hidden = !active;
+    });
     const report = getBudgetReportData(state.budgetReportYear);
-    document.getElementById('budget-year-display').textContent = `${state.budgetReportYear}年`;
-    renderBudgetAssetSummary(state.budgetReportYear);
-    renderBudgetProgressSummary(report);
-    renderBudgetMonthlyTable(report.months);
-    renderBudgetProgressChart(report);
-    renderSpecialBudgetSection();
+    if (state.budgetView === 'overview') {
+        renderBudgetAssetSummary(state.budgetReportYear);
+        renderBudgetProgressSummary(report);
+        renderBudgetProgressChart(report);
+    } else if (state.budgetView === 'monthly') {
+        renderBudgetMonthDetail(report.months);
+        renderBudgetMonthlyTable(report.months);
+    } else {
+        renderSpecialBudgetSection();
+    }
 }
 
 function getAnnualReportData(year) {

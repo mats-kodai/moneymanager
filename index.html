@@ -11,7 +11,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <!-- Custom Style -->
-    <link rel="stylesheet" href="styles.css?v=4.6.0">
+    <link rel="stylesheet" href="styles.css?v=4.7.0">
 </head>
 <body>
     <!-- Self-contained interface icons: reliable even when external icon fonts are blocked. -->
@@ -209,11 +209,18 @@
                 <div class="budget-report-toolbar">
                     <div class="year-selector" role="group" aria-label="資産計画管理の表示年を選択">
                         <button type="button" class="btn-icon" id="budget-prev-year" aria-label="前年を表示"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg></button>
-                        <span id="budget-year-display" aria-live="polite">—</span>
+                        <select id="budget-year-select" class="form-select" aria-label="資産計画管理の表示年"></select>
                         <button type="button" class="btn-icon" id="budget-next-year" aria-label="翌年を表示"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg></button>
                     </div>
                 </div>
 
+                <div class="budget-view-tabs" role="tablist" aria-label="資産計画管理の表示内容">
+                    <button type="button" id="budget-tab-overview" role="tab" data-budget-view="overview" aria-controls="budget-panel-overview" aria-selected="true">概要</button>
+                    <button type="button" id="budget-tab-monthly" role="tab" data-budget-view="monthly" aria-controls="budget-panel-monthly" aria-selected="false" tabindex="-1">月別進捗</button>
+                    <button type="button" id="budget-tab-special" role="tab" data-budget-view="special" aria-controls="budget-panel-special" aria-selected="false" tabindex="-1">特別予算</button>
+                </div>
+
+                <div id="budget-panel-overview" role="tabpanel" aria-labelledby="budget-tab-overview" tabindex="0">
                 <div class="budget-asset-grid">
                     <div class="summary-card asset budget-report-card">
                         <div class="card-header"><span class="card-label">現時点の資産</span></div>
@@ -271,54 +278,50 @@
                     </div>
                 </section>
 
-                <section class="transactions-table-card budget-report-section" aria-labelledby="budget-monthly-title">
-                    <div class="budget-section-heading">
-                        <h2 id="budget-monthly-title">月別進捗</h2>
-                    </div>
-                    <div class="responsive-table-wrapper budget-table-wrapper">
-                        <table class="data-table responsive-detail-table budget-monthly-table">
-                            <thead>
-                                <tr>
-                                    <th>月</th>
-                                    <th class="text-right">収入予定</th>
-                                    <th class="text-right">収入実績</th>
-                                    <th class="text-right">差額</th>
-                                    <th class="text-right">支出予定</th>
-                                    <th class="text-right">支出実績</th>
-                                    <th class="text-right">残額</th>
-                                </tr>
-                            </thead>
-                            <tbody id="budget-monthly-tbody"></tbody>
-                        </table>
-                    </div>
-                </section>
+                </div>
 
-                <section class="budget-section special-budget-section" aria-labelledby="special-budget-title">
-                    <div class="budget-section-heading">
-                        <h2 id="special-budget-title">特別予算</h2>
-                    </div>
-                    <div class="special-budget-years" id="special-budget-years" aria-label="特別予算の年を選択"></div>
-                </section>
+                <div id="budget-panel-monthly" role="tabpanel" aria-labelledby="budget-tab-monthly" tabindex="0" hidden>
+                    <section class="budget-section" aria-labelledby="budget-monthly-title">
+                        <div class="budget-section-heading">
+                            <h2 id="budget-monthly-title">月別進捗</h2>
+                        </div>
+                        <div id="budget-month-picker" class="budget-month-picker" role="group" aria-label="進捗を表示する月"></div>
+                        <div id="budget-month-detail" aria-live="polite"></div>
+                        <details class="budget-annual-comparison">
+                            <summary>12か月を一覧で比較</summary>
+                            <div class="budget-table-wrapper">
+                                <table class="budget-monthly-table">
+                                    <thead><tr>
+                                        <th scope="col">月</th><th scope="col">収入予定</th><th scope="col">収入実績</th><th scope="col">差額</th>
+                                        <th scope="col">支出予定</th><th scope="col">支出実績</th><th scope="col">残額</th>
+                                    </tr></thead>
+                                    <tbody id="budget-monthly-tbody"></tbody>
+                                </table>
+                            </div>
+                        </details>
+                    </section>
+                </div>
 
-                <section class="transactions-table-card budget-report-section special-budget-details" aria-labelledby="special-budget-detail-title">
-                    <div class="budget-section-heading has-note">
-                        <h2 id="special-budget-detail-title">特別予算の明細</h2>
-                        <span class="section-note hidden" id="special-budget-reconcile"></span>
-                    </div>
-                    <div class="responsive-table-wrapper budget-table-wrapper">
-                        <table class="data-table responsive-detail-table">
-                            <thead>
-                                <tr>
-                                    <th>日付</th>
-                                    <th>項目</th>
-                                    <th>備考</th>
-                                    <th class="text-right">金額</th>
-                                </tr>
-                            </thead>
-                            <tbody id="special-budget-details-tbody"></tbody>
-                        </table>
-                    </div>
-                </section>
+                <div id="budget-panel-special" role="tabpanel" aria-labelledby="budget-tab-special" tabindex="0" hidden>
+                    <section class="budget-section special-budget-section" aria-labelledby="special-budget-title">
+                        <div class="budget-section-heading"><h2 id="special-budget-title">特別予算</h2></div>
+                        <div id="special-budget-summary" aria-live="polite"></div>
+                    </section>
+                    <section class="budget-section special-budget-details" aria-labelledby="special-budget-detail-title">
+                        <div class="budget-section-heading special-budget-detail-heading">
+                            <h2 id="special-budget-detail-title">特別予算の明細</h2>
+                            <select id="special-budget-month" class="form-select" aria-label="特別予算の明細を月で絞り込む"></select>
+                        </div>
+                        <p class="section-note hidden" id="special-budget-reconcile"></p>
+                        <p class="section-note" id="special-budget-filter-total" aria-live="polite"></p>
+                        <div id="special-budget-ledger" class="expense-ledger" aria-live="polite"></div>
+                        <nav class="special-budget-pagination" aria-label="特別予算の明細ページ">
+                            <button type="button" class="btn-icon" id="special-budget-prev-page" aria-label="前の明細ページ"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"></use></svg></button>
+                            <span id="special-budget-page-status" aria-live="polite"></span>
+                            <button type="button" class="btn-icon" id="special-budget-next-page" aria-label="次の明細ページ"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg></button>
+                        </nav>
+                    </section>
+                </div>
             </section>
 
             <!-- Tab: Annual report -->
@@ -764,6 +767,6 @@
     </div>
 
     <!-- Script File -->
-    <script src="app.js?v=4.6.0"></script>
+    <script src="app.js?v=4.7.0"></script>
 </body>
 </html>
