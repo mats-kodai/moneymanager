@@ -604,7 +604,13 @@ tbody tr:hover { background: var(--md-sys-color-surface-container-high); }
 .transactions-table-card { padding: 6px 20px 0; }
 .transactions-table-card.budget-report-section { padding: 24px; }
 .main-table { min-width: 720px; }
-.annual-monthly-table { min-width: 640px; }
+.annual-monthly-wrapper { overscroll-behavior-inline: contain; }
+.annual-monthly-table { width: 100%; min-width: 0; font-variant-numeric: tabular-nums; }
+.annual-monthly-table caption { padding-bottom: 8px; text-align: right; color: var(--md-sys-color-on-surface-variant); font-size: .75rem; }
+.annual-monthly-table th, .annual-monthly-table td { white-space: nowrap; }
+.annual-monthly-table tbody th { color: var(--md-sys-color-on-surface); font-size: inherit; font-weight: 600; }
+.annual-monthly-table tbody tr:nth-child(even) { background: var(--md-sys-color-surface-container); }
+.annual-monthly-table tbody tr:hover { background: var(--md-sys-color-surface-container-high); }
 .table-footer { padding: 14px 12px 18px; color: var(--md-sys-color-on-surface-variant); font-size: .75rem; }
 .expense-ledger-card { padding-top: 0; }
 .expense-ledger { width: 100%; }
@@ -772,6 +778,9 @@ input:focus, select:focus, textarea:focus { border: 2px solid var(--md-sys-color
 }
 
 @media (max-width: 760px) {
+    .annual-monthly-table { font-size: .75rem; }
+    .annual-monthly-table th, .annual-monthly-table td { padding: 12px 2px; }
+    .annual-monthly-table thead th { font-size: .75rem; }
     .budget-view-tabs { max-width: none; margin-bottom: 16px; }
     .budget-month-picker { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 20px; }
     .budget-month-metrics { grid-template-columns: 1fr; gap: 10px; }

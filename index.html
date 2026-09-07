@@ -11,7 +11,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <!-- Custom Style -->
-    <link rel="stylesheet" href="styles.css?v=4.7.1">
+    <link rel="stylesheet" href="styles.css?v=4.7.2">
 </head>
 <body>
     <!-- Self-contained interface icons: reliable even when external icon fonts are blocked. -->
@@ -369,15 +369,16 @@
                     <div class="detail-header">
                         <h3 id="annual-monthly-title">1月〜12月の月別実績</h3>
                     </div>
-                    <div class="table-wrapper responsive-table-wrapper">
-                        <table class="main-table responsive-detail-table annual-monthly-table">
+                    <div class="table-wrapper annual-monthly-wrapper">
+                        <table class="annual-monthly-table" aria-labelledby="annual-monthly-title">
+                            <caption>金額：円</caption>
                             <thead>
                                 <tr>
-                                    <th>月</th>
-                                    <th class="text-right">手取り収入</th>
-                                    <th class="text-right">総支出</th>
-                                    <th class="text-right">収支</th>
-                                    <th class="text-right">貯蓄率</th>
+                                    <th scope="col">月</th>
+                                    <th scope="col" class="text-right">手取り</th>
+                                    <th scope="col" class="text-right">総支出</th>
+                                    <th scope="col" class="text-right">収支</th>
+                                    <th scope="col" class="text-right">貯蓄率</th>
                                 </tr>
                             </thead>
                             <tbody id="annual-monthly-tbody"></tbody>
@@ -769,6 +770,6 @@
     </div>
 
     <!-- Script File -->
-    <script src="app.js?v=4.7.1"></script>
+    <script src="app.js?v=4.7.2"></script>
 </body>
 </html>

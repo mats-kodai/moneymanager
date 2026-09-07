@@ -1258,15 +1258,17 @@ function renderAnnualReport() {
 function renderAnnualMonthlyTable(months) {
     const tbody = document.getElementById('annual-monthly-tbody');
     tbody.replaceChildren();
+    // 通貨単位は表の上にまとめ、スマートフォンでも月ごとの比較に幅を使う。
+    const amountFormatter = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 });
 
     months.forEach(month => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td data-label="月"><strong>${month.month}月</strong></td>
-            <td data-label="手取り収入" class="text-right">${formatCurrency(month.income)}</td>
-            <td data-label="総支出" class="text-right">${formatCurrency(month.expenses)}</td>
-            <td data-label="収支" class="text-right ${month.balance >= 0 ? 'text-primary' : 'text-danger'}">${formatCurrency(month.balance)}</td>
-            <td data-label="貯蓄率" class="text-right">${formatPercentage(month.savingsRate)}</td>
+            <th scope="row">${month.month}月</th>
+            <td class="text-right">${amountFormatter.format(Math.round(month.income))}</td>
+            <td class="text-right">${amountFormatter.format(Math.round(month.expenses))}</td>
+            <td class="text-right ${month.balance >= 0 ? 'text-primary' : 'text-danger'}">${amountFormatter.format(Math.round(month.balance))}</td>
+            <td class="text-right">${formatPercentage(month.savingsRate)}</td>
         `;
         tbody.appendChild(row);
     });
