@@ -416,6 +416,7 @@ body.menu-open { overflow: hidden; }
 .budget-section-heading { display: flex; min-height: 32px; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .budget-section-heading h2 { margin: 0; color: var(--md-sys-color-on-surface); font-family: var(--md-ref-typeface-brand); font-size: 1.375rem; font-weight: 500; line-height: 1.3; }
 .section-note { margin: 0; color: var(--md-sys-color-on-surface-variant); font-size: .75rem; }
+.budget-scope-note { margin-bottom: 16px; }
 .budget-asset-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }
 .budget-report-card { min-height: 154px; }
 .budget-report-card .progress-track { margin-top: auto; }

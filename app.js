@@ -855,6 +855,8 @@ function getBudgetReportData(year) {
 
     const actualExpenseByMonth = Array(12).fill(0);
     state.expenses.forEach(expense => {
+        // 経常支出の計画と比較するため、特別予算で管理する明細は除外する。
+        if (isSpecialBudgetExpense(expense)) return;
         const parsed = getExpenseYearMonth(expense);
         if (parsed?.year === year) {
             actualExpenseByMonth[parsed.month] += Number(expense.amount || 0);
@@ -961,8 +963,8 @@ function renderBudgetMonthlyTable(months) {
             <td data-label="収入予定" class="text-right">${month.hasPlan ? formatCurrency(month.incomePlan) : '—'}</td>
             <td data-label="収入実績" class="text-right">${formatCurrency(month.incomeActual)}</td>
             <td data-label="収入差額" class="text-right ${month.hasPlan ? (month.incomeDifference >= 0 ? 'text-success' : 'text-danger') : ''}">${incomeDifferenceText}</td>
-            <td data-label="支出予定" class="text-right">${month.hasPlan ? formatCurrency(month.expensePlan) : '—'}</td>
-            <td data-label="支出実績" class="text-right">${formatCurrency(month.expenseActual)}</td>
+            <td data-label="経常支出予定" class="text-right">${month.hasPlan ? formatCurrency(month.expensePlan) : '—'}</td>
+            <td data-label="経常支出実績" class="text-right">${formatCurrency(month.expenseActual)}</td>
             <td data-label="支出残額" class="text-right ${month.hasPlan ? (month.expenseRemaining >= 0 ? 'text-success' : 'text-danger') : ''}">${expenseRemainingText}</td>
         `;
         tbody.appendChild(row);
@@ -1108,7 +1110,7 @@ function renderBudgetMonthDetail(months) {
     const month = months.find(item => item.month === state.budgetMonth);
     const metrics = [
         { label: '額面収入', plan: month.incomePlan, actual: month.incomeActual, difference: month.incomeDifference, differenceLabel: '予定との差額' },
-        { label: '支出', plan: month.expensePlan, actual: month.expenseActual, difference: month.expenseRemaining, differenceLabel: month.hasPlan && month.expenseRemaining < 0 ? '予算超過' : '予算残額' }
+        { label: '経常支出', plan: month.expensePlan, actual: month.expenseActual, difference: month.expenseRemaining, differenceLabel: month.hasPlan && month.expenseRemaining < 0 ? '予算超過' : '予算残額' }
     ];
     document.getElementById('budget-month-detail').innerHTML = `
         <h3 class="budget-month-detail-title">${state.budgetReportYear}年${month.month}月</h3>

@@ -11,7 +11,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <!-- Custom Style -->
-    <link rel="stylesheet" href="styles.css?v=4.7.0">
+    <link rel="stylesheet" href="styles.css?v=4.7.1">
 </head>
 <body>
     <!-- Self-contained interface icons: reliable even when external icon fonts are blocked. -->
@@ -245,6 +245,7 @@
                     <div class="budget-section-heading">
                         <h2 id="budget-progress-title">年間進捗</h2>
                     </div>
+                    <p class="section-note budget-scope-note">経常支出は、旅費・特別予算分を除いた金額です。</p>
                     <div class="budget-progress-grid">
                         <div class="budget-progress-card income-progress-card">
                             <span class="budget-line-label">額面収入</span>
@@ -255,7 +256,7 @@
                             </dl>
                         </div>
                         <div class="budget-progress-card expense-progress-card">
-                            <span class="budget-line-label">支出</span>
+                            <span class="budget-line-label">経常支出</span>
                             <strong id="budget-expense-status">—</strong>
                             <dl class="budget-compare-list">
                                 <div><dt>予定</dt><dd id="budget-expense-plan">—</dd></div>
@@ -269,7 +270,7 @@
                     <div class="budget-section-heading has-controls">
                         <h2 id="budget-chart-title">月別累積</h2>
                         <div class="chart-toggles budget-metric-toggle" role="group" aria-label="累積グラフの表示項目">
-                            <button type="button" class="btn-toggle active" data-budget-metric="expense" aria-pressed="true">支出</button>
+                            <button type="button" class="btn-toggle active" data-budget-metric="expense" aria-pressed="true">経常支出</button>
                             <button type="button" class="btn-toggle" data-budget-metric="income" aria-pressed="false">収入</button>
                         </div>
                     </div>
@@ -285,6 +286,7 @@
                         <div class="budget-section-heading">
                             <h2 id="budget-monthly-title">月別進捗</h2>
                         </div>
+                        <p class="section-note budget-scope-note">経常支出は、旅費・特別予算分を除いた金額です。</p>
                         <div id="budget-month-picker" class="budget-month-picker" role="group" aria-label="進捗を表示する月"></div>
                         <div id="budget-month-detail" aria-live="polite"></div>
                         <details class="budget-annual-comparison">
@@ -293,7 +295,7 @@
                                 <table class="budget-monthly-table">
                                     <thead><tr>
                                         <th scope="col">月</th><th scope="col">収入予定</th><th scope="col">収入実績</th><th scope="col">差額</th>
-                                        <th scope="col">支出予定</th><th scope="col">支出実績</th><th scope="col">残額</th>
+                                        <th scope="col">経常支出予定</th><th scope="col">経常支出実績</th><th scope="col">残額</th>
                                     </tr></thead>
                                     <tbody id="budget-monthly-tbody"></tbody>
                                 </table>
@@ -767,6 +769,6 @@
     </div>
 
     <!-- Script File -->
-    <script src="app.js?v=4.7.0"></script>
+    <script src="app.js?v=4.7.1"></script>
 </body>
 </html>
