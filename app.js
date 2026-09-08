@@ -248,7 +248,7 @@ function showMainTab(tabId) {
         else item.removeAttribute('aria-current');
     });
 
-    const isSecondaryTab = [...secondaryNavItems].some(item => item.getAttribute('data-tab') === tabId);
+    const isSecondaryTab = [...secondaryNavItems].some(item => item.getAttribute('data-tab') === tabId) && (window.matchMedia(HEADER_MENU_MOBILE_QUERY).matches || !['annual-report', 'budget'].includes(tabId));
     menuButton.classList.toggle('active', isSecondaryTab);
     if (isSecondaryTab) menuButton.setAttribute('aria-current', 'page');
     else menuButton.removeAttribute('aria-current');
@@ -324,8 +324,9 @@ function initNavigation() {
     // リンク遷移
     document.getElementById('view-all-expenses').addEventListener('click', (e) => {
         e.preventDefault();
-        showMainTab('transactions');
+        openExpenseDetails();
     });
+    document.getElementById('dashboard-budget-link').addEventListener('click', event => { event.preventDefault(); openBudgetDetails('overview'); });
 }
 
 let headerMenuReturnFocus = null;
@@ -416,6 +417,7 @@ function initHeaderMenu() {
 }
 
 function updateHeaderInfo(tabId) {
+    document.body.classList.toggle('annual-page', tabId === 'annual-report');
     const titleEl = document.getElementById('page-title');
     const monthSelector = document.querySelector('.month-selector');
     
@@ -1357,7 +1359,7 @@ function renderAnnualCategoryChart(report) {
     const list = document.getElementById('annual-category-list');
     list.replaceChildren();
 
-    report.categoryEntries.slice(0, 5).forEach(([category, amount], index) => {
+    report.categoryEntries.forEach(([category, amount], index) => {
         const item = document.createElement('li');
         const label = document.createElement('span');
         label.className = 'category-rank-label';
@@ -1437,6 +1439,7 @@ function renderDashboard() {
     const latestAsset = latestAssetRecords[0] || null;
     const previousAsset = latestAssetRecords[1] || null;
     const assetTrendEl = document.getElementById('assets-trend');
+    document.getElementById('dashboard-cash').textContent = latestAsset ? formatCurrency(latestAsset.cash) : '—';
     document.getElementById('total-assets').textContent = latestAsset ? formatCurrency(latestAsset.total) : '—';
     document.getElementById('assets-as-of').textContent = latestAsset ? formatAssetAsOfDate(latestAsset.date) : '記録なし';
     if (latestAsset && previousAsset) {
@@ -1471,6 +1474,7 @@ function renderDashboard() {
 
     document.getElementById('category-chart-title').textContent = `${state.currentMonth.getFullYear()}年${state.currentMonth.getMonth() + 1}月の支出内訳`;
     document.getElementById('recent-expenses-title').textContent = `${state.currentMonth.getFullYear()}年${state.currentMonth.getMonth() + 1}月の最近の支出`;
+    renderDashboardBudget(totalExpenses);
     renderCategoryDoughnut(currentExpenses, totalSubsMonthly);
     renderRecentExpenses(currentExpenses);
     renderCashflowChart();
@@ -1955,7 +1959,7 @@ function renderCategoryDoughnut(currentMonthExpenses, totalSubsMonthly) {
 
     const topList = document.getElementById('category-top-list');
     topList.replaceChildren();
-    categoryEntries.slice(0, 5).forEach(([category, amount], index) => {
+    categoryEntries.forEach(([category, amount], index) => {
         const item = document.createElement('li');
         const label = document.createElement('span');
         label.className = 'category-rank-label';
@@ -1967,7 +1971,17 @@ function renderCategoryDoughnut(currentMonthExpenses, totalSubsMonthly) {
         label.append(dot, name);
         const value = document.createElement('strong');
         value.textContent = formatCurrency(amount);
-        item.append(label, value);
+        const button = document.createElement('button');
+        button.type = 'button'; button.className = 'category-detail-link';
+        button.append(label, value);
+        const previousDate = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() - 1, 1);
+        const previous = filterExpensesByMonth(state.expenses, previousDate).filter(exp => (exp.category || '未分類') === category).reduce((sum, exp) => sum + Number(exp.amount || 0), 0) + (category === 'サブスク' ? totalSubsMonthly : 0);
+        const note = document.createElement('small');
+        const diff = amount - previous;
+        note.textContent = `前月全体との差 ${diff >= 0 ? '+' : ''}${formatCurrency(diff)} · ${categoryBudgetText(category)}`;
+        button.appendChild(note);
+        button.addEventListener('click', () => openExpenseDetails(category));
+        item.appendChild(button);
         topList.appendChild(item);
     });
 
@@ -2033,7 +2047,7 @@ function renderCategoryDoughnut(currentMonthExpenses, totalSubsMonthly) {
 // --- Transactions List Tables Rendering ---
 
 // 支出明細の描画
-let expenseFilterState = { search: '', category: 'all' };
+let expenseFilterState = { search: '', category: 'all', scope: 'all' };
 
 function renderExpensesList() {
     const currentMonthExpenses = filterExpensesByMonth(state.expenses, state.currentMonth);
@@ -2042,7 +2056,8 @@ function renderExpensesList() {
     const catSelect = document.getElementById('filter-expense-cat');
     const prevVal = catSelect.value;
     const cats = new Set();
-    currentMonthExpenses.forEach(e => cats.add(e.category));
+    currentMonthExpenses.forEach(e => cats.add(e.category || '未分類'));
+    if (expenseFilterState.category !== 'all') cats.add(expenseFilterState.category);
     
     catSelect.innerHTML = '<option value="all">すべて</option>';
     cats.forEach(c => {
@@ -2065,12 +2080,14 @@ function renderExpensesList() {
             (exp.description && exp.description.toLowerCase().includes(expenseFilterState.search.toLowerCase())) ||
             (exp.category && exp.category.toLowerCase().includes(expenseFilterState.search.toLowerCase()));
         
-        const matchCat = expenseFilterState.category === 'all' || exp.category === expenseFilterState.category;
+        const matchCat = expenseFilterState.category === 'all' || (exp.category || '未分類') === expenseFilterState.category;
 
-        return matchSearch && matchCat;
+        return matchSearch && matchCat && (expenseFilterState.scope !== 'recurring' || !isSpecialBudgetExpense(exp));
     });
 
-    document.getElementById('expense-count').textContent = `選択月の支出明細: 全 ${displayList.length} 件`;
+    const totalText = `${displayList.length}件 · 合計 ${formatCurrency(displayList.reduce((sum, exp) => sum + Number(exp.amount || 0), 0))}`;
+    document.getElementById('expense-count').textContent = totalText;
+    document.getElementById('expense-filter-summary').textContent = `${expenseFilterState.scope === 'recurring' ? '経常支出のみ · ' : ''}${totalText}（記録済み明細のみ・サブスク月額換算の別途加算なし）`;
     renderExpenseLedger(
         document.getElementById('expense-list'),
         displayList,
@@ -2092,7 +2109,7 @@ document.getElementById('filter-expense-cat').addEventListener('change', (e) => 
 document.getElementById('reset-expense-filters').addEventListener('click', () => {
     document.getElementById('expense-search').value = '';
     document.getElementById('filter-expense-cat').value = 'all';
-    expenseFilterState = { search: '', category: 'all' };
+    expenseFilterState = { search: '', category: 'all', scope: 'all' };
     renderExpensesList();
 });
 
@@ -2135,25 +2152,15 @@ function renderIncomesList() {
 
 // サブスク一覧明細の描画
 function renderSubscriptionsList() {
-    const tbody = document.getElementById('sub-table-tbody');
-    tbody.innerHTML = '';
-
-    if (state.subscriptions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">サブスクデータが登録されていません。</td></tr>';
-        return;
-    }
-
+    const list = document.getElementById('subscription-list');
+    list.replaceChildren();
+    if (!state.subscriptions.length) { list.textContent = 'サブスクデータが登録されていません。'; return; }
     state.subscriptions.forEach(sub => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td data-label="年">${sub.year}年</td>
-            <td data-label="媒体名"><strong>${escapeHtml(sub.name)}</strong></td>
-            <td data-label="支出金額">${formatCurrency(sub.amount)}</td>
-            <td data-label="支払回数">年 ${sub.paymentCount} 回</td>
-            <td data-label="年間支払額">${formatCurrency(sub.annualAmount)}</td>
-            <td data-label="月当たり" class="text-right font-bold text-primary">${formatCurrency(sub.monthlyAmount)} /月</td>
-        `;
-        tbody.appendChild(row);
+        const details = document.createElement('details');
+        details.className = 'subscription-item';
+        details.innerHTML = `<summary><span>${escapeHtml(sub.name)}<small>詳細を開く</small></span><strong>${formatCurrency(sub.monthlyAmount)}</strong><span>${formatCurrency(sub.annualAmount)}</span></summary>
+            <dl class="subscription-details"><div><dt>対象年</dt><dd>${escapeHtml(sub.year)}年</dd></div><div><dt>実際の1回の請求額</dt><dd>${formatCurrency(sub.amount)}</dd></div><div><dt>年間の支払回数</dt><dd>${escapeHtml(sub.paymentCount)}回</dd></div></dl>`;
+        list.appendChild(details);
     });
 }
 
@@ -2652,4 +2659,66 @@ function formatJapaneseDate(dateStr) {
     const month = String(dateObj.getMonth() + 1).padStart(2, '0');
     const day = String(dateObj.getDate()).padStart(2, '0');
     return `${dateObj.getFullYear()}年${month}月${day}日`;
+}
+
+// Dashboard links preserve the selected month and reset unrelated filters.
+function openExpenseDetails(category = 'all', scope = 'all') {
+    expenseFilterState = { search: '', category, scope };
+    document.getElementById('expense-search').value = '';
+    const select = document.getElementById('filter-expense-cat');
+    if (![...select.options].some(option => option.value === category)) select.add(new Option(category, category));
+    select.value = category;
+    showMainTab('transactions');
+    document.getElementById('expense-filter-summary').setAttribute('tabindex', '-1');
+    document.getElementById('expense-filter-summary').focus({ preventScroll: true });
+}
+function openBudgetDetails(view) {
+    state.budgetReportYear = state.currentMonth.getFullYear();
+    state.budgetMonth = state.currentMonth.getMonth() + 1;
+    state.budgetView = view;
+    state.specialBudgetMonth = 'all'; state.specialBudgetPage = 0;
+    showMainTab('budget');
+}
+function renderDashboardBudget(total) {
+    const year = state.currentMonth.getFullYear();
+    const month = getBudgetReportData(year).months[state.currentMonth.getMonth()];
+    const special = state.specialBudgets.find(row => Number(row.year) === year);
+    const spent = getSpecialBudgetDetails(year).reduce((sum, exp) => sum + Number(exp.amount || 0), 0);
+    const list = document.getElementById('dashboard-budget-summary'); list.replaceChildren();
+    const rows = [
+        ['総支出', total, () => openExpenseDetails(), '記録済み明細へ'],
+        ['うち経常支出', month.expenseActual, () => openExpenseDetails('all', 'recurring'), '経常支出の明細へ'],
+        ['経常予算の残額', month.hasPlan ? month.expenseRemaining : null, () => openBudgetDetails('monthly'), '選択月の計画へ'],
+        [`特別予算の残額（${year}年）`, special ? Number(special.budgetAmount || 0) - spent : null, () => openBudgetDetails('special'), '年間の特別予算・明細へ']
+    ];
+    rows.forEach(([label, value, action, hint]) => {
+        const button = document.createElement('button'); button.type = 'button'; button.className = 'budget-shortcut';
+        button.innerHTML = `<span>${label}</span><strong class="${value !== null && value < 0 ? 'text-danger' : ''}">${value === null ? '予算未設定' : formatCurrency(value)}</strong><small>${value !== null && value < 0 ? '予算超過 · ' : ''}${hint} →</small>`;
+        button.addEventListener('click', action); list.appendChild(button);
+    });
+}
+function categoryBudgetText(category) {
+    const date = state.currentMonth;
+    const year = date.getFullYear();
+    const fy = date.getMonth() < 3 ? year - 1 : year;
+    const rows = state.itemBudgets.filter(row => String(row.expenseCategory).trim() === category && (String(row.fiscalYear) === String(year) || String(row.fiscalYear) === `FY${fy}`));
+    if (!rows.length) return 'カテゴリ予算未設定';
+    return rows.map(row => {
+        const monthly = row.unit === '月';
+        if (!monthly && row.unit !== '年') return '予算の管理単位を確認';
+        const isFiscal = String(row.fiscalYear).startsWith('FY');
+        const start = monthly ? new Date(year, date.getMonth(), 1) : new Date(isFiscal ? fy : year, isFiscal ? 3 : 0, 1);
+        const end = monthly ? new Date(year, date.getMonth() + 1, 1) : new Date(start.getFullYear() + 1, start.getMonth(), 1);
+        if (!['経常', '特別'].includes(row.budgetType)) return '予算区分を確認';
+        const actual = state.expenses.filter(exp => {
+            const parsed = getExpenseYearMonth(exp);
+            if (!parsed || (exp.category || '未分類') !== category) return false;
+            const d = new Date(parsed.year, parsed.month, 1);
+            return d >= start && d < end && (row.budgetType === '特別' ? isSpecialBudgetExpense(exp) : !isSpecialBudgetExpense(exp)) && Number(exp.amount || 0) >= Number(row.minimumAmount || 0);
+        }).reduce((sum, exp) => sum + Number(exp.amount || 0), 0);
+        const remain = Number(row.budgetAmount || 0) - actual;
+        const last = new Date(end.getFullYear(), end.getMonth(), 0);
+        const period = monthly ? '当月' : `${start.getFullYear()}/${start.getMonth()+1}〜${last.getFullYear()}/${last.getMonth()+1}`;
+        return `${row.budgetType} ${period}予算残 ${formatCurrency(remain)}（記録済み明細${Number(row.minimumAmount || 0) > 0 ? '・1件' + formatCurrency(row.minimumAmount) + '以上' : ''}）`;
+    }).join(' / ');
 }

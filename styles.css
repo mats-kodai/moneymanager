@@ -884,3 +884,43 @@ input:focus, select:focus, textarea:focus { border: 2px solid var(--md-sys-color
     html { scroll-behavior: auto; }
     *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Compact, linked financial overview */
+.asset-cash { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; margin:12px 0; font-size:.875rem; }
+.ledger-more { text-align:center; padding:16px 0 0; }
+.ledger-more a { display:inline-flex; align-items:center; min-height:44px; }
+.dashboard-budget-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:16px 0; }
+.budget-shortcut { display:grid; gap:10px; text-align:left; padding:16px; border:0; border-radius:16px; background:var(--md-sys-color-surface-container); color:var(--md-sys-color-on-surface); cursor:pointer; font:inherit; }
+.budget-shortcut strong { font-size:1.25rem; overflow-wrap:anywhere; }
+.budget-shortcut small { color:var(--md-sys-color-primary); }
+.category-detail-link { display:grid; grid-template-columns:1fr auto; gap:8px; width:100%; padding:12px 0; border:0; background:transparent; color:inherit; text-align:left; cursor:pointer; font:inherit; }
+.category-detail-link small { grid-column:1/-1; color:var(--md-sys-color-on-surface-variant); line-height:1.6; }
+#category-top-list li { display:block; }
+.subscription-head, .subscription-item summary { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr); gap:10px; padding:14px 10px; align-items:center; }
+.subscription-head { font-size:.8rem; color:var(--md-sys-color-on-surface-variant); }
+.subscription-head span:not(:first-child), .subscription-item summary > :not(:first-child) { text-align:right; font-variant-numeric:tabular-nums; }
+.subscription-item { border-top:1px solid var(--md-sys-color-outline-variant); }
+.subscription-item summary { cursor:pointer; list-style:none; font-size:.875rem; overflow-wrap:anywhere; }
+.subscription-item summary::-webkit-details-marker { display:none; }
+.subscription-item summary small { display:block; color:var(--md-sys-color-primary); font-size:.75rem; margin-top:4px; }
+.subscription-item[open] summary small { font-size:0; }
+.subscription-item[open] summary small::after { content:'詳細を閉じる'; font-size:.75rem; }
+.subscription-details { padding:0 12px 16px; }
+.subscription-details > div { display:flex; justify-content:space-between; gap:12px; padding:6px 0; }
+#expense-filter-summary { padding:16px; }
+@media (min-width:921px) {
+ .header-menu-item[data-tab="annual-report"], .header-menu-item[data-tab="budget"] { display:none; }
+ .annual-page .top-navbar { min-height:64px; margin-bottom:4px; }
+ .annual-page .annual-report-toolbar { margin-bottom:12px; }
+ .annual-page .annual-summary-grid { margin-bottom:16px; }
+ .annual-page .annual-cashflow-chart-wrapper { height:280px; }
+}
+@media (max-width:920px) {
+ .bottom-nav .desktop-destination { display:none; }
+ .dashboard-budget-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:480px) {
+ .subscription-head, .subscription-item summary { gap:6px; padding:12px 4px; }
+ .budget-shortcut { padding:12px; font-size:.8rem; }
+ .budget-shortcut strong { font-size:1.05rem; }
+}

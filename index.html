@@ -11,7 +11,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <!-- Custom Style -->
-    <link rel="stylesheet" href="styles.css?v=4.7.2">
+    <link rel="stylesheet" href="styles.css?v=4.8.0">
 </head>
 <body>
     <!-- Self-contained interface icons: reliable even when external icon fonts are blocked. -->
@@ -75,6 +75,7 @@
                             <span class="card-label">総資産</span>
                         </div>
                         <div class="card-value" id="total-assets">¥0</div>
+                        <div class="asset-cash">うち現金・預金 <strong id="dashboard-cash">—</strong></div>
                         <div class="asset-as-of" id="assets-as-of">記録なし</div>
                         <div class="card-trend" id="assets-trend">
                             <span>比較データなし</span>
@@ -93,7 +94,7 @@
                     <!-- Card 3: Expenses (Including Subs) -->
                     <div class="summary-card expenses">
                         <div class="card-header">
-                            <span class="card-label">選択月の総支出</span>
+                            <span class="card-label">支出</span>
                         </div>
                         <div class="card-value" id="total-expenses">¥0</div>
                         <div class="card-trend text-danger" id="expense-desc-card"></div>
@@ -102,7 +103,7 @@
                     <!-- Card 4: Monthly Balance -->
                     <div class="summary-card balance">
                         <div class="card-header">
-                            <span class="card-label">選択月の収支</span>
+                            <span class="card-label">収支</span>
                         </div>
                         <div class="card-value" id="monthly-balance">¥0</div>
                         <div class="card-trend" id="balance-trend">
@@ -122,6 +123,11 @@
                     </div>
                 </div>
 
+                <section class="chart-card dashboard-section-card" aria-label="支出と予算の余裕">
+                    <div class="detail-header"><h3>支出と予算の余裕</h3><a href="#budget" id="dashboard-budget-link">資産計画管理へ</a></div>
+                    <div id="dashboard-budget-summary" class="dashboard-budget-grid"></div>
+                    <p class="section-note">総支出はサブスク月額換算を含みます。経常支出は旅費・特別予算分を除く記録済み明細で、月額換算の別途加算はありません。</p>
+                </section>
                 <!-- 1. Selected month expense breakdown -->
                 <div class="chart-card dashboard-section-card">
                     <h3 id="category-chart-title">選択月の支出内訳</h3>
@@ -129,7 +135,7 @@
                         <div class="chart-wrapper">
                             <canvas id="category-distribution-chart"></canvas>
                         </div>
-                        <ol class="category-top-list" id="category-top-list" aria-label="支出額上位5項目"></ol>
+                        <ol class="category-top-list" id="category-top-list" aria-label="カテゴリ別の支出と比較"></ol>
                     </div>
                 </div>
 
@@ -137,9 +143,10 @@
                 <div class="detail-card recent-expenses dashboard-section-card">
                     <div class="detail-header">
                         <h3 id="recent-expenses-title">選択月の最近の支出</h3>
-                        <a href="#transactions" class="link-more" id="view-all-expenses">すべて見る <svg class="icon" aria-hidden="true"><use href="#icon-arrow"></use></svg></a>
+
                     </div>
                     <div id="recent-expenses-list" class="expense-ledger recent-expense-ledger" aria-live="polite"></div>
+                    <div class="ledger-more"><a href="#transactions" class="link-more" id="view-all-expenses">すべて見る <svg class="icon" aria-hidden="true"><use href="#icon-arrow"></use></svg></a></div>
                 </div>
 
                 <!-- 3. Monthly cashflow -->
@@ -440,6 +447,7 @@
                     </div>
 
                     <div class="transactions-table-card expense-ledger-card">
+                        <p id="expense-filter-summary" class="section-note" aria-live="polite"></p>
                         <div id="expense-list" class="expense-ledger" aria-live="polite">
                             <!-- JS -->
                         </div>
@@ -482,23 +490,9 @@
                 <!-- Sub-tab: Subscriptions -->
                 <div id="subtab-sub-list" class="sub-tab-pane">
                     <div class="transactions-table-card">
-                        <div class="table-wrapper responsive-table-wrapper">
-                            <table class="main-table responsive-detail-table">
-                                <thead>
-                                    <tr>
-                                        <th>年</th>
-                                        <th>媒体名</th>
-                                        <th>支出金額</th>
-                                        <th>支払回数 / 年</th>
-                                        <th>年間支払額</th>
-                                        <th class="text-right">月当たり支払額</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="sub-table-tbody">
-                                    <!-- JS -->
-                                </tbody>
-                            </table>
-                        </div>
+                        <p class="section-note">月額換算は年間支払額を月ごとに均した負担額です。実際の1回の請求額は詳細で確認できます。</p>
+                        <div class="subscription-head"><span>サービス名</span><span>月額換算</span><span>年額</span></div>
+                        <div id="subscription-list"></div>
                     </div>
                 </div>
             </section>
@@ -685,6 +679,8 @@
                 <span class="bottom-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-add"></use></svg></span>
                 <span>追加</span>
             </a>
+<a href="#annual-report" class="bottom-nav-item desktop-destination" data-tab="annual-report"><span class="bottom-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"></use></svg></span><span>年間レポート</span></a>
+<a href="#budget" class="bottom-nav-item desktop-destination" data-tab="budget"><span class="bottom-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-target"></use></svg></span><span>資産計画管理</span></a>
             <button type="button" class="bottom-nav-item bottom-nav-menu" id="header-menu-button" aria-label="メニューを開く" aria-controls="header-menu-panel" aria-expanded="false">
                 <span class="bottom-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-menu"></use></svg></span>
                 <span>メニュー</span>
@@ -770,6 +766,6 @@
     </div>
 
     <!-- Script File -->
-    <script src="app.js?v=4.7.2"></script>
+    <script src="app.js?v=4.8.0"></script>
 </body>
 </html>
