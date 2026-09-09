@@ -534,7 +534,9 @@ body.menu-open { overflow: hidden; }
 .chart-wrapper { position: relative; height: 300px; margin-top: 20px; }
 .chart-wrapper.large-chart { height: 370px; }
 .annual-cashflow-chart-wrapper { height: 360px; }
-.annual-category-layout { display: grid; grid-template-columns: minmax(180px, .85fr) minmax(180px, 1.15fr); gap: 16px; align-items: center; }
+.annual-report-grid > .chart-card { container-type: inline-size; }
+.annual-category-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: center; }
+.annual-category-layout > * { min-width: 0; }
 .annual-category-chart-wrapper { height: 260px; }
 .annual-category-layout .category-top-list { margin-top: 0; }
 .annual-income-breakdown { display: grid; margin-top: 20px; }
@@ -950,4 +952,14 @@ input:focus, select:focus, textarea:focus { border: 2px solid var(--md-sys-color
  #tab-dashboard .summary-card .card-value { font-size:clamp(.95rem,3.5vw,1.35rem); }
  #tab-dashboard .summary-card .card-trend { font-size:.65rem; }
  #tab-dashboard .summary-card:hover { border-radius:var(--md-sys-shape-corner-medium); }
+}
+
+/* Use the card width, rather than the viewport, to place the annual legend. */
+.annual-category-chart-wrapper { width:100%; max-width:320px; margin-inline:auto; }
+#annual-category-list li { display:grid; grid-template-columns:minmax(0,1fr) auto; padding-inline:4px; }
+#annual-category-list .category-rank-label { min-width:0; }
+#annual-category-list .category-rank-label span:last-child { white-space:normal; overflow:visible; overflow-wrap:anywhere; }
+#annual-category-list strong { white-space:nowrap; }
+@container (min-width: 520px) {
+ .annual-category-layout { grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr); }
 }
