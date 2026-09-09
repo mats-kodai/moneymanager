@@ -11,7 +11,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <!-- Custom Style -->
-    <link rel="stylesheet" href="styles.css?v=4.8.2">
+    <link rel="stylesheet" href="styles.css?v=4.9.0">
 </head>
 <body>
     <!-- Self-contained interface icons: reliable even when external icon fonts are blocked. -->
@@ -325,25 +325,11 @@
                     </div>
                 </div>
 
-                <div class="annual-summary-grid">
-                    <div class="summary-card annual-summary-card annual-income-card">
-                        <div class="card-header"><span class="card-label">年間手取り収入</span></div>
-                        <div class="card-value" id="annual-income-total">¥0</div>
-                        <div class="card-trend" id="annual-income-note">収入記録: 0件</div>
-                    </div>
-                    <div class="summary-card annual-summary-card annual-expense-card">
-                        <div class="card-header"><span class="card-label">年間総支出</span></div>
-                        <div class="card-value" id="annual-expense-total">¥0</div>
-                    </div>
-                    <div class="summary-card annual-summary-card annual-balance-card">
-                        <div class="card-header"><span class="card-label">年間収支</span></div>
-                        <div class="card-value" id="annual-balance-total">¥0</div>
-                    </div>
-                    <div class="summary-card annual-summary-card annual-savings-card">
-                        <div class="card-header"><span class="card-label">年間貯蓄率</span></div>
-                        <div class="card-value" id="annual-savings-rate">—</div>
-                    </div>
-                </div>
+                <section class="annual-balance-card-new annual-section-card" aria-label="年間収支の概要">
+                    <div class="annual-balance-heading"><span id="annual-summary-year"></span><h3>年間収支</h3></div>
+                    <div class="annual-balance-hero"><strong id="annual-balance-total"></strong><div><span>貯蓄率</span><strong id="annual-savings-rate"></strong></div></div>
+                    <div id="annual-balance-graphic"></div>
+                </section>
 
                 <div class="chart-card annual-section-card">
                     <div class="detail-header">
@@ -748,6 +734,6 @@
     </div>
 
     <!-- Script File -->
-    <script src="app.js?v=4.8.2"></script>
+    <script src="app.js?v=4.9.0"></script>
 </body>
 </html>

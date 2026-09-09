@@ -963,3 +963,30 @@ input:focus, select:focus, textarea:focus { border: 2px solid var(--md-sys-color
 @container (min-width: 520px) {
  .annual-category-layout { grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr); }
 }
+
+/* One annual summary with proportional segments and brackets below the bar. */
+.annual-balance-card-new { --balance-accent:var(--md-sys-color-primary); background:var(--md-sys-color-surface-container-low); border-radius:var(--md-sys-shape-corner-large); padding:24px 32px; }
+.annual-balance-card-new.is-deficit { --balance-accent:var(--md-sys-color-error); }
+.annual-balance-heading { display:flex; justify-content:space-between; align-items:center; color:var(--md-sys-color-on-surface-variant); font-size:.875rem; }
+.annual-balance-heading h3 { font-size:.875rem; margin:0; font-weight:500; }
+.annual-balance-hero { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:24px 0; border-bottom:1px solid var(--md-sys-color-outline-variant); margin-bottom:24px; font-variant-numeric:tabular-nums; }
+#annual-balance-total { font-size:clamp(1.8rem,4vw,3rem); line-height:1.2; letter-spacing:-.03em; color:var(--balance-accent); overflow-wrap:anywhere; min-width:0; }
+.annual-balance-hero > div { display:grid; gap:8px; text-align:right; flex-shrink:0; font-size:.75rem; color:var(--md-sys-color-on-surface-variant); }
+#annual-savings-rate { font-size:clamp(1.2rem,2vw,1.75rem); color:var(--balance-accent); }
+.annual-balance-track { display:flex; height:18px; overflow:hidden; border-radius:999px; background:var(--md-sys-color-secondary-container); }
+.annual-balance-base { width:var(--balance-split); flex-shrink:0; background:var(--md-sys-color-secondary-container); }
+.annual-balance-gap { flex:1; background:var(--balance-accent); }
+.annual-balance-track.is-empty { opacity:.5; }
+.annual-segment-labels { position:relative; height:100px; padding-top:8px; font-size:.875rem; }
+.annual-segment-brackets { display:grid; grid-template-columns:var(--balance-split) minmax(0,1fr); height:8px; }
+.annual-segment-brackets span { border:1px solid var(--md-sys-color-outline); border-top:0; min-width:0; }
+.annual-segment-brackets span:last-child { border-color:var(--balance-accent); }
+.annual-base-label, .annual-gap-label { position:absolute; top:24px; text-align:center; transform:translateX(-50%); width:150px; max-width:45%; overflow-wrap:anywhere; }
+.annual-base-label { left:clamp(23%,var(--base-center),77%); display:grid; gap:6px; color:var(--md-sys-color-on-surface-variant); }
+.annual-base-label strong { color:var(--md-sys-color-on-surface); font-size:1rem; font-variant-numeric:tabular-nums; }
+.annual-gap-label { left:clamp(23%,var(--gap-center),86%); max-width:25%; color:var(--balance-accent); }
+.annual-whole-label { position:relative; display:flex; flex-wrap:wrap; justify-content:center; gap:6px 10px; border-top:1px solid var(--md-sys-color-outline); padding-top:14px; font-size:.95rem; font-variant-numeric:tabular-nums; }
+.annual-whole-label::before, .annual-whole-label::after { content:''; position:absolute; top:-8px; height:8px; border-left:1px solid var(--md-sys-color-outline); }
+.annual-whole-label::before { left:0; } .annual-whole-label::after { right:0; }
+.annual-balance-fallback > div { display:flex; justify-content:space-between; gap:16px; padding:8px 0; }
+@media(max-width:760px) { .annual-balance-card-new { padding:20px 16px; } }

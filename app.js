@@ -1232,17 +1232,7 @@ function renderAnnualReport() {
     document.getElementById('annual-category-title').textContent = `${report.year}年の支出内訳`;
     document.getElementById('annual-income-breakdown-title').textContent = `${report.year}年の収入・控除内訳`;
 
-    document.getElementById('annual-income-total').textContent = formatCurrency(report.totalIncome);
-    document.getElementById('annual-income-note').textContent = `収入記録: ${report.incomeRecordCount}件`;
-    document.getElementById('annual-expense-total').textContent = formatCurrency(report.totalExpenses);
-
-    const balanceEl = document.getElementById('annual-balance-total');
-    balanceEl.textContent = formatCurrency(report.balance);
-    balanceEl.className = `card-value${report.balance < 0 ? ' text-danger' : ''}`;
-
-    const savingsRateEl = document.getElementById('annual-savings-rate');
-    savingsRateEl.textContent = formatPercentage(report.savingsRate);
-    savingsRateEl.className = `card-value${report.savingsRate !== null && report.savingsRate < 0 ? ' text-danger' : ''}`;
+    renderAnnualBalanceSummary(report);
 
     const breakdown = report.incomeBreakdown;
     document.getElementById('annual-gross-pay').textContent = formatCurrency(breakdown.grossPay);
@@ -2695,4 +2685,36 @@ function renderDashboardBudget(total) {
         button.innerHTML = `<span class="shortcut-copy"><span>${label}</span><strong class="${value !== null && value < 0 ? 'text-danger' : ''}">${value === null ? '予算未設定' : formatCurrency(value)}</strong>${value !== null && value < 0 ? '<small class="text-danger">予算超過</small>' : ''}</span><svg class="icon shortcut-chevron" aria-hidden="true"><use href="#icon-chevron-right"></use></svg>`;
         button.addEventListener('click', action); list.appendChild(button);
     });
+}
+
+function renderAnnualBalanceSummary(report) {
+    const { totalIncome: income, totalExpenses: expenses, balance, savingsRate } = report;
+    const deficit = balance < 0;
+    const panel = document.querySelector('.annual-balance-card-new');
+    panel.classList.toggle('is-deficit', deficit);
+    document.getElementById('annual-summary-year').textContent = `${report.year}年`;
+    document.getElementById('annual-balance-total').textContent = `${balance > 0 ? '+' : ''}${formatCurrency(balance)}`;
+    document.getElementById('annual-savings-rate').textContent = formatPercentage(savingsRate);
+    const graphic = document.getElementById('annual-balance-graphic');
+    // Negative net income/expenses cannot form a non-negative stacked bar.
+    if (income < 0 || expenses < 0) {
+        graphic.innerHTML = `<dl class="annual-balance-fallback"><div><dt>手取り収入</dt><dd>${formatCurrency(income)}</dd></div><div><dt>総支出</dt><dd>${formatCurrency(expenses)}</dd></div></dl>`;
+        return;
+    }
+    const total = Math.max(income, expenses);
+    const base = Math.min(income, expenses);
+    const split = total > 0 ? base / total * 100 : 100;
+    const first = deficit ? '手取り収入' : '支出';
+    const second = deficit ? '不足' : '収支';
+    const whole = deficit ? '総支出' : '手取り収入';
+    graphic.style.setProperty('--balance-split', `${split}%`);
+    graphic.style.setProperty('--base-center', `${split / 2}%`);
+    graphic.style.setProperty('--gap-center', `${(split + 100) / 2}%`);
+    graphic.innerHTML = `<div class="annual-balance-track${total === 0 ? ' is-empty' : ''}" aria-hidden="true"><span class="annual-balance-base"></span><span class="annual-balance-gap"></span></div>
+        <div class="annual-segment-labels">
+            <div class="annual-segment-brackets" aria-hidden="true"><span></span><span${balance === 0 ? ' hidden' : ''}></span></div>
+            <div class="annual-base-label"><span>${first}</span><strong>${formatCurrency(base)}</strong></div>
+            ${balance !== 0 ? `<div class="annual-gap-label">${second}</div>` : ''}
+        </div>
+        <div class="annual-whole-label"><span>${whole}</span><strong>${formatCurrency(total)}</strong></div>`;
 }
