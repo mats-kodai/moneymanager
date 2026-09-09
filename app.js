@@ -1469,8 +1469,6 @@ function renderDashboard() {
     const balanceTrendEl = document.getElementById('balance-trend');
     balanceTrendEl.className = `card-trend ${balanceDiff >= 0 ? 'text-success' : 'text-danger'}`;
     balanceTrendEl.textContent = `前月比: ${balanceDiff >= 0 ? '+' : ''}${formatCurrency(balanceDiff)}`;
-    document.getElementById('total-subs-monthly').textContent = formatCurrency(totalSubsMonthly);
-    document.getElementById('total-subs-count').textContent = `契約数: ${state.subscriptions.length} 件`;
 
     document.getElementById('category-chart-title').textContent = `${state.currentMonth.getFullYear()}年${state.currentMonth.getMonth() + 1}月の支出内訳`;
     document.getElementById('recent-expenses-title').textContent = `${state.currentMonth.getFullYear()}年${state.currentMonth.getMonth() + 1}月の最近の支出`;
@@ -1978,7 +1976,7 @@ function renderCategoryDoughnut(currentMonthExpenses, totalSubsMonthly) {
         const previous = filterExpensesByMonth(state.expenses, previousDate).filter(exp => (exp.category || '未分類') === category).reduce((sum, exp) => sum + Number(exp.amount || 0), 0) + (category === 'サブスク' ? totalSubsMonthly : 0);
         const note = document.createElement('small');
         const diff = amount - previous;
-        note.textContent = `前月全体との差 ${diff >= 0 ? '+' : ''}${formatCurrency(diff)} · ${categoryBudgetText(category)}`;
+        note.textContent = `前月全体との差 ${diff >= 0 ? '+' : ''}${formatCurrency(diff)}`;
         button.appendChild(note);
         button.addEventListener('click', () => openExpenseDetails(category));
         item.appendChild(button);
@@ -2693,32 +2691,8 @@ function renderDashboardBudget(total) {
     ];
     rows.forEach(([label, value, action, hint]) => {
         const button = document.createElement('button'); button.type = 'button'; button.className = 'budget-shortcut';
-        button.innerHTML = `<span>${label}</span><strong class="${value !== null && value < 0 ? 'text-danger' : ''}">${value === null ? '予算未設定' : formatCurrency(value)}</strong><small>${value !== null && value < 0 ? '予算超過 · ' : ''}${hint} →</small>`;
+        button.setAttribute('aria-label', `${label} ${value === null ? '予算未設定' : formatCurrency(value)}${value !== null && value < 0 ? ' 予算超過' : ''}：${hint}`);
+        button.innerHTML = `<span class="shortcut-copy"><span>${label}</span><strong class="${value !== null && value < 0 ? 'text-danger' : ''}">${value === null ? '予算未設定' : formatCurrency(value)}</strong>${value !== null && value < 0 ? '<small class="text-danger">予算超過</small>' : ''}</span><svg class="icon shortcut-chevron" aria-hidden="true"><use href="#icon-chevron-right"></use></svg>`;
         button.addEventListener('click', action); list.appendChild(button);
     });
-}
-function categoryBudgetText(category) {
-    const date = state.currentMonth;
-    const year = date.getFullYear();
-    const fy = date.getMonth() < 3 ? year - 1 : year;
-    const rows = state.itemBudgets.filter(row => String(row.expenseCategory).trim() === category && (String(row.fiscalYear) === String(year) || String(row.fiscalYear) === `FY${fy}`));
-    if (!rows.length) return 'カテゴリ予算未設定';
-    return rows.map(row => {
-        const monthly = row.unit === '月';
-        if (!monthly && row.unit !== '年') return '予算の管理単位を確認';
-        const isFiscal = String(row.fiscalYear).startsWith('FY');
-        const start = monthly ? new Date(year, date.getMonth(), 1) : new Date(isFiscal ? fy : year, isFiscal ? 3 : 0, 1);
-        const end = monthly ? new Date(year, date.getMonth() + 1, 1) : new Date(start.getFullYear() + 1, start.getMonth(), 1);
-        if (!['経常', '特別'].includes(row.budgetType)) return '予算区分を確認';
-        const actual = state.expenses.filter(exp => {
-            const parsed = getExpenseYearMonth(exp);
-            if (!parsed || (exp.category || '未分類') !== category) return false;
-            const d = new Date(parsed.year, parsed.month, 1);
-            return d >= start && d < end && (row.budgetType === '特別' ? isSpecialBudgetExpense(exp) : !isSpecialBudgetExpense(exp)) && Number(exp.amount || 0) >= Number(row.minimumAmount || 0);
-        }).reduce((sum, exp) => sum + Number(exp.amount || 0), 0);
-        const remain = Number(row.budgetAmount || 0) - actual;
-        const last = new Date(end.getFullYear(), end.getMonth(), 0);
-        const period = monthly ? '当月' : `${start.getFullYear()}/${start.getMonth()+1}〜${last.getFullYear()}/${last.getMonth()+1}`;
-        return `${row.budgetType} ${period}予算残 ${formatCurrency(remain)}（記録済み明細${Number(row.minimumAmount || 0) > 0 ? '・1件' + formatCurrency(row.minimumAmount) + '以上' : ''}）`;
-    }).join(' / ');
 }

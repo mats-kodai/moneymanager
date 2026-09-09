@@ -11,7 +11,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <!-- Custom Style -->
-    <link rel="stylesheet" href="styles.css?v=4.8.0">
+    <link rel="stylesheet" href="styles.css?v=4.8.1">
 </head>
 <body>
     <!-- Self-contained interface icons: reliable even when external icon fonts are blocked. -->
@@ -68,20 +68,12 @@
             <!-- Tab: Dashboard -->
             <section id="tab-dashboard" class="tab-pane active">
                 <!-- Flat monthly overview -->
+                <section class="dashboard-assets" aria-label="資産残高">
+                    <div class="asset-main"><span class="card-label">総資産</span><div class="card-value" id="total-assets">¥0</div></div>
+                    <div class="asset-cash"><span>うち現金・預金</span><strong id="dashboard-cash">—</strong></div>
+                    <div class="asset-meta"><div class="asset-as-of" id="assets-as-of">記録なし</div><div class="card-trend" id="assets-trend">比較データなし</div></div>
+                </section>
                 <div class="summary-grid">
-                    <!-- Card 1: Total Assets -->
-                    <div class="summary-card asset">
-                        <div class="card-header">
-                            <span class="card-label">総資産</span>
-                        </div>
-                        <div class="card-value" id="total-assets">¥0</div>
-                        <div class="asset-cash">うち現金・預金 <strong id="dashboard-cash">—</strong></div>
-                        <div class="asset-as-of" id="assets-as-of">記録なし</div>
-                        <div class="card-trend" id="assets-trend">
-                            <span>比較データなし</span>
-                        </div>
-                    </div>
-
                     <!-- Card 2: Net Income -->
                     <div class="summary-card income">
                         <div class="card-header">
@@ -111,22 +103,12 @@
                         </div>
                     </div>
 
-                    <!-- Card 5: Subscriptions Burden -->
-                    <div class="summary-card subscription">
-                        <div class="card-header">
-                            <span class="card-label">サブスク月額負担</span>
-                        </div>
-                        <div class="card-value" id="total-subs-monthly">¥0</div>
-                        <div class="card-trend" id="total-subs-count">
-                            <span>登録数: 0 件</span>
-                        </div>
-                    </div>
+
                 </div>
 
                 <section class="chart-card dashboard-section-card" aria-label="支出と予算の余裕">
                     <div class="detail-header"><h3>支出と予算の余裕</h3><a href="#budget" id="dashboard-budget-link">資産計画管理へ</a></div>
                     <div id="dashboard-budget-summary" class="dashboard-budget-grid"></div>
-                    <p class="section-note">総支出はサブスク月額換算を含みます。経常支出は旅費・特別予算分を除く記録済み明細で、月額換算の別途加算はありません。</p>
                 </section>
                 <!-- 1. Selected month expense breakdown -->
                 <div class="chart-card dashboard-section-card">
@@ -766,6 +748,6 @@
     </div>
 
     <!-- Script File -->
-    <script src="app.js?v=4.8.0"></script>
+    <script src="app.js?v=4.8.1"></script>
 </body>
 </html>

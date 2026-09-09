@@ -886,7 +886,7 @@ input:focus, select:focus, textarea:focus { border: 2px solid var(--md-sys-color
 }
 
 /* Compact, linked financial overview */
-.asset-cash { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; margin:12px 0; font-size:.875rem; }
+
 .ledger-more { text-align:center; padding:16px 0 0; }
 .ledger-more a { display:inline-flex; align-items:center; min-height:44px; }
 .dashboard-budget-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:16px 0; }
@@ -923,4 +923,31 @@ input:focus, select:focus, textarea:focus { border: 2px solid var(--md-sys-color
  .subscription-head, .subscription-item summary { gap:6px; padding:12px 4px; }
  .budget-shortcut { padding:12px; font-size:.8rem; }
  .budget-shortcut strong { font-size:1.05rem; }
+}
+
+/* Passive asset overview and clearly actionable budget cards. */
+#tab-dashboard .summary-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+#tab-dashboard .summary-card:hover { transform:none; border-radius:var(--md-sys-shape-corner-large); background:var(--md-sys-color-surface-container-low); }
+.dashboard-assets { display:grid; grid-template-columns:1fr 1fr 1fr; align-items:center; gap:16px; padding:20px 24px; margin-bottom:12px; border-radius:24px; background:var(--md-sys-color-primary-container); color:var(--md-sys-color-on-primary-container); }
+.asset-main { grid-column:2; grid-row:1; text-align:center; }
+.asset-main .card-value { margin-top:8px; color:inherit; }
+.dashboard-assets .asset-cash { grid-column:3; grid-row:1; display:grid; gap:6px; text-align:right; font-size:.8rem; }
+.asset-cash strong { font-size:1rem; font-variant-numeric:tabular-nums; }
+.asset-meta { grid-column:1; grid-row:1; font-size:.75rem; }
+.asset-meta .asset-as-of, .asset-meta .card-trend { margin:4px 0; }
+.budget-shortcut { display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px solid var(--md-sys-color-outline-variant); border-radius:12px; background:var(--md-sys-color-surface); box-shadow:0 2px 0 var(--md-sys-color-outline-variant); transition:background-color .15s, transform .15s; }
+.shortcut-copy { display:grid; gap:10px; min-width:0; }
+.shortcut-chevron { flex:0 0 22px; color:var(--md-sys-color-primary); }
+.budget-shortcut:hover { background:var(--md-sys-color-secondary-container); }
+.budget-shortcut:active { transform:translateY(2px); box-shadow:none; }
+.budget-shortcut:focus-visible { outline:3px solid var(--md-sys-color-primary); outline-offset:3px; }
+@media (max-width:760px) {
+ .dashboard-assets { grid-template-columns:1fr; gap:10px; padding:16px; }
+ .asset-main, .dashboard-assets .asset-cash, .asset-meta { grid-column:1; grid-row:auto; text-align:center; }
+ .dashboard-assets .asset-cash { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:center; gap:8px; }
+ .asset-meta { display:flex; flex-wrap:wrap; justify-content:center; gap:4px 12px; }
+ #tab-dashboard .summary-card { padding:14px 10px; min-height:112px; }
+ #tab-dashboard .summary-card .card-value { font-size:clamp(.95rem,3.5vw,1.35rem); }
+ #tab-dashboard .summary-card .card-trend { font-size:.65rem; }
+ #tab-dashboard .summary-card:hover { border-radius:var(--md-sys-shape-corner-medium); }
 }
