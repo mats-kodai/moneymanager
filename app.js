@@ -1425,20 +1425,27 @@ function renderDashboard() {
     const totalExpenses = currentExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) + totalSubsMonthly;
     const prevTotalExpenses = prevExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) + totalSubsMonthly;
 
-    const latestAssetRecords = getLatestAssetRecords();
+    const now = new Date();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const selectedMonthStart = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth(), 1);
+    const selectedMonthEnd = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() + 1, 1);
+    const isFutureAssetMonth = selectedMonthStart > currentMonthStart;
+    const latestAssetRecords = isFutureAssetMonth ? [] : getLatestAssetRecords().filter(asset =>
+        selectedMonthStart.getTime() === currentMonthStart.getTime() || safeParseDate(asset.date) < selectedMonthEnd
+    );
     const latestAsset = latestAssetRecords[0] || null;
     const previousAsset = latestAssetRecords[1] || null;
     const assetTrendEl = document.getElementById('assets-trend');
-    document.getElementById('dashboard-cash').textContent = latestAsset ? formatCurrency(latestAsset.cash) : '—';
-    document.getElementById('total-assets').textContent = latestAsset ? formatCurrency(latestAsset.total) : '—';
-    document.getElementById('assets-as-of').textContent = latestAsset ? formatAssetAsOfDate(latestAsset.date) : '記録なし';
+    document.getElementById('dashboard-cash').textContent = latestAsset ? formatCurrency(latestAsset.cash) : isFutureAssetMonth ? '-' : '—';
+    document.getElementById('total-assets').textContent = latestAsset ? formatCurrency(latestAsset.total) : isFutureAssetMonth ? '-' : '—';
+    document.getElementById('assets-as-of').textContent = latestAsset ? formatAssetAsOfDate(latestAsset.date) : isFutureAssetMonth ? '' : '記録なし';
     if (latestAsset && previousAsset) {
         const assetDiff = Number(latestAsset.total || 0) - Number(previousAsset.total || 0);
         assetTrendEl.className = `card-trend ${assetDiff >= 0 ? 'text-success' : 'text-danger'}`;
         assetTrendEl.textContent = `前回記録比: ${assetDiff >= 0 ? '+' : ''}${formatCurrency(assetDiff)}`;
     } else {
         assetTrendEl.className = 'card-trend';
-        assetTrendEl.textContent = latestAsset ? '比較データなし' : '資産記録なし';
+        assetTrendEl.textContent = isFutureAssetMonth ? '' : latestAsset ? '比較データなし' : '資産記録なし';
     }
 
     const incomeDiff = totalIncome - prevTotalIncome;
