@@ -896,7 +896,7 @@ input:focus, select:focus, textarea:focus { border: 2px solid var(--md-sys-color
 .budget-shortcut strong { font-size:1.25rem; overflow-wrap:anywhere; }
 .budget-shortcut small { color:var(--md-sys-color-primary); }
 .category-detail-link { display:grid; grid-template-columns:1fr auto; gap:8px; width:100%; padding:12px 0; border:0; background:transparent; color:inherit; text-align:left; cursor:pointer; font:inherit; }
-.category-detail-link small { grid-column:1/-1; color:var(--md-sys-color-on-surface-variant); line-height:1.6; }
+.category-detail-link small { grid-column:2; text-align:right; color:var(--md-sys-color-on-surface-variant); line-height:1.6; font-variant-numeric:tabular-nums; }
 #category-top-list li { display:block; }
 .subscription-head, .subscription-item summary { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr); gap:10px; padding:14px 10px; align-items:center; }
 .subscription-head { font-size:.8rem; color:var(--md-sys-color-on-surface-variant); }

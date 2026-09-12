@@ -1973,7 +1973,7 @@ function renderCategoryDoughnut(currentMonthExpenses, totalSubsMonthly) {
         const previous = filterExpensesByMonth(state.expenses, previousDate).filter(exp => (exp.category || '未分類') === category).reduce((sum, exp) => sum + Number(exp.amount || 0), 0) + (category === 'サブスク' ? totalSubsMonthly : 0);
         const note = document.createElement('small');
         const diff = amount - previous;
-        note.textContent = `前月全体との差 ${diff >= 0 ? '+' : ''}${formatCurrency(diff)}`;
+        note.textContent = `（前月比:${diff > 0 ? '+' : ''}${formatCurrency(diff)}）`;
         button.appendChild(note);
         button.addEventListener('click', () => openExpenseDetails(category));
         item.appendChild(button);
