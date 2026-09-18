@@ -2238,7 +2238,7 @@ function initFormLogic() {
                 state.expenses.unshift(newExpense);
                 localStorage.setItem('kakeibo_demo_expenses_v2', JSON.stringify(state.expenses));
                 showToast('【デモモード】ローカルに支出を一時保存しました。スプレッドシートには反映されません。', 'warning');
-                onTransactionSaved();
+                onTransactionSaved('expense');
             } else {
                 const response = await fetch(state.gasUrl, {
                     method: 'POST',
@@ -2261,7 +2261,7 @@ function initFormLogic() {
 
                 if (data.status === 'success') {
                     showToast('スプレッドシートに支出を追記しました！', 'success');
-                    onTransactionSaved();
+                    onTransactionSaved('expense');
                     void syncWithGas({ background: true, silent: true });
                 } else {
                     throw new Error(data.message || "スプレッドシートへの保存に失敗しました。");
@@ -2318,7 +2318,7 @@ function initFormLogic() {
                 state.incomes.unshift(newIncome);
                 localStorage.setItem('kakeibo_demo_incomes_v2', JSON.stringify(state.incomes));
                 showToast('【デモモード】ローカルに収入を一時保存しました。スプレッドシートには反映されません。', 'warning');
-                onTransactionSaved();
+                onTransactionSaved('income');
             } else {
                 const response = await fetch(state.gasUrl, {
                     method: 'POST',
@@ -2341,7 +2341,7 @@ function initFormLogic() {
 
                 if (data.status === 'success') {
                     showToast('スプレッドシートに収入を追記しました！', 'success');
-                    onTransactionSaved();
+                    onTransactionSaved('income');
                     void syncWithGas({ background: true, silent: true });
                 } else {
                     throw new Error(data.message || "スプレッドシートへの保存に失敗しました。");
@@ -2403,9 +2403,19 @@ function resetForms() {
     document.getElementById('form-select-expense').click();
 }
 
-function onTransactionSaved() {
-    resetForms();
-    showMainTab('dashboard');
+function onTransactionSaved(type) {
+    // 保存したフォームだけをクリアし、入力画面と対象日付は維持する。
+    if (type === 'expense') {
+        const date = document.getElementById('exp-date').value;
+        document.getElementById('expense-form').reset();
+        document.getElementById('exp-date').value = date;
+    } else if (type === 'income') {
+        const month = document.getElementById('inc-yearmonth').value;
+        document.getElementById('income-form').reset();
+        document.getElementById('inc-yearmonth').value = month;
+        document.getElementById('inc-other-deduct').value = 2260;
+        calculateIncomeOutputs();
+    }
 }
 
 // --- Social Insurance Calculator Modal ---
