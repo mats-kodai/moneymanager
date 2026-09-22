@@ -191,6 +191,8 @@
                                 <span class="item-label">ポイント</span>
                                 <span class="item-value" id="hover-points">¥0</span>
                             </div>
+                            <div class="detail-item"><span class="item-label">一般財形</span><span class="item-value" id="hover-zaikei">¥0</span></div>
+                            <div class="detail-item"><span class="item-label">持株会</span><span class="item-value" id="hover-employee-stock">¥0</span></div>
                         </div>
                     </div>
                 </div>
@@ -474,9 +476,18 @@
                     <!-- Form Container -->
                     <div class="form-card">
                         <div class="form-header-toggle" role="group" aria-label="記録する取引の種類">
-                            <button type="button" class="toggle-form-btn active" id="form-select-expense" aria-pressed="true">支出の記録</button>
-                            <button type="button" class="toggle-form-btn" id="form-select-income" aria-pressed="false">収入の記録</button>
+                            <button type="button" class="toggle-form-btn active" id="form-select-expense" aria-pressed="true">支出</button>
+                            <button type="button" class="toggle-form-btn" id="form-select-income" aria-pressed="false">収入</button>
+                            <button type="button" class="toggle-form-btn" id="form-select-asset" aria-pressed="false">資産</button>
                         </div>
+
+                        <form id="asset-form" class="transaction-form hidden">
+                            <h3>資産を記録する</h3>
+                            <div class="form-group"><label for="asset-date" class="required">日付</label><input type="date" id="asset-date" name="date" required></div>
+                            <div class="form-group"><label for="asset-zaikei" class="required">一般財形残高（円）</label><input type="number" id="asset-zaikei" name="zaikei" min="0" step="1" required inputmode="numeric"></div>
+                            <div class="form-group"><label for="asset-shares" class="required">持株会株数（株）</label><input type="number" id="asset-shares" name="shares" min="0" step="any" required inputmode="decimal"></div>
+                            <button type="submit" class="btn btn-primary btn-block">資産を保存</button>
+                        </form>
 
                         <!-- 1. Expense Form -->
                         <form id="expense-form" class="transaction-form">
@@ -737,6 +748,6 @@
     </div>
 
     <!-- Script File -->
-    <script src="app.js?v=4.9.3"></script>
+    <script src="app.js?v=4.10.0"></script>
 </body>
 </html>

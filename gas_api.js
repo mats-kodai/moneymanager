@@ -9,6 +9,8 @@
 const SPREADSHEET_ID = '[任意で入力]'; 
 
 // スプレッドシート名定義
+const SHEET_OTHER_ASSETS = "その他資産積立状況";
+const SHEET_PRICES = "株価履歴";
 const SHEET_ASSETS = "週次資産記録";
 const SHEET_EXPENSES = "支出記録";
 const SHEET_INCOMES = "収入記録";
@@ -23,9 +25,13 @@ const SHEET_ASSET_TARGETS = "資産目標";
  * GETリクエスト処理：家計4シートと計画5シートのデータをJSONで返します
  */
 function doGet(e) {
+  const lock = LockService.getScriptLock();
   try {
+    lock.waitLock(30000);
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     initializeSheets(ss);
+
+    const supplemental = refreshSupplementalAssets(ss);
 
     // 1. 週次資産記録
     const assetSheet = ss.getSheetByName(SHEET_ASSETS);
@@ -36,7 +42,8 @@ function doGet(e) {
       if (!row[0]) continue;
       assets.push({
         date: formatDate(row[0]),
-        total: Number(row[1] || 0),
+        total: Number(row[1] || 0) + (supplemental[i] ? supplemental[i].zaikei + (supplemental[i].employeeStock || 0) : 0),
+        ...(supplemental[i] || {}),
         cash: Number(row[2] || 0),
         stocks: Number(row[3] || 0),
         trusts: Number(row[4] || 0),
@@ -214,6 +221,8 @@ function doGet(e) {
       status: "error",
       message: error.toString()
     });
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -221,7 +230,9 @@ function doGet(e) {
  * POSTリクエスト処理：Webアプリからの支出または収入の追記を行います
  */
 function doPost(e) {
+  const lock = LockService.getScriptLock();
   try {
+    lock.waitLock(30000);
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     initializeSheets(ss);
 
@@ -276,13 +287,20 @@ function doPost(e) {
         transportation, 
         takeHomePay
       ]]);
+    } else if (type === "asset") {
+      const date = normalizeAssetDate(postData.date);
+      const zaikei = strictAssetNumber(postData.zaikei);
+      const shares = strictAssetNumber(postData.shares);
+      if (!date || !Number.isInteger(zaikei)) throw new Error("日付・残高・株数を確認してください。");
+      const sheet = ss.getSheetByName(SHEET_OTHER_ASSETS);
+      sheet.getRange(sheet.getLastRow() + 1, 1, 1, 3).setValues([[date, zaikei, shares]]);
     } else {
       throw new Error("無効なtypeパラメータです。");
     }
 
     return createJsonResponse({
       status: "success",
-      message: `${type === "expense" ? "支出" : "収入"}を記録しました。`
+      message: `${type === "asset" ? "資産" : type === "expense" ? "支出" : "収入"}を記録しました。`
     });
 
   } catch (error) {
@@ -290,6 +308,8 @@ function doPost(e) {
       status: "error",
       message: error.toString()
     });
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -340,6 +360,8 @@ function toNumber(value) {
 }
 
 function initializeSheets(ss) {
+  if (!ss.getSheetByName(SHEET_OTHER_ASSETS)) ss.insertSheet(SHEET_OTHER_ASSETS).appendRow(["日付", "一般財形残高", "持株会株数"]);
+  if (!ss.getSheetByName(SHEET_PRICES)) ss.insertSheet(SHEET_PRICES).appendRow(["価格日", "銘柄", "終値", "取得日時"]);
   let assetSheet = ss.getSheetByName(SHEET_ASSETS);
   if (!assetSheet) {
     assetSheet = ss.insertSheet(SHEET_ASSETS);
@@ -380,4 +402,71 @@ function getLastRowForColumn(sheet, columnNumber) {
     }
   }
   return 0;
+}
+
+// A〜Fの元データは変更せず、専用列に補助資産を記録する。
+function normalizeAssetDate(value) {
+  if (value instanceof Date && !isNaN(value)) return Utilities.formatDate(value, "Asia/Tokyo", "yyyy-MM-dd");
+  const m = String(value || "").match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (!m) return "";
+  const date = `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+  const parsed = new Date(date + 'T00:00:00Z');
+  return !isNaN(parsed) && parsed.toISOString().slice(0, 10) === date ? date : "";
+}
+function strictAssetNumber(value) {
+  if (value === "" || value === null || value === undefined) throw new Error("残高・株数は必須です。");
+  const n = Number(String(value).replace(/[,¥￥円株\s]/g, ''));
+  if (!Number.isFinite(n) || n < 0) throw new Error("残高・株数は0以上の数値にしてください。");
+  return n;
+}
+function supplementalForDate(date, records, prices) {
+  // 同日は最後に追記された記録を採用。未来の記録は参照しない。
+  const record = records.filter(r => r.date <= date).sort((a,b) => a.date.localeCompare(b.date) || a.index-b.index).pop();
+  if (!record) return {zaikei: 0, employeeStock: 0, employeeStockMissing: false, shares: 0, priceDate: '', recordDate: ''};
+  const price = prices.filter(p => p.date <= date).sort((a,b) => a.date.localeCompare(b.date)).pop();
+  const missing = record.shares > 0 && (!price || (Date.parse(date)-Date.parse(price.date)) / 86400000 > 7);
+  return {zaikei: record.zaikei, shares: record.shares, recordDate: record.date,
+    employeeStock: missing ? null : record.shares === 0 ? 0 : Math.round(record.shares * price.close),
+    employeeStockMissing: missing, priceDate: price ? price.date : ''};
+}
+function refreshSupplementalAssets(ss) {
+  const records = ss.getSheetByName(SHEET_OTHER_ASSETS).getDataRange().getValues().slice(1)
+    .map((r, index) => ({date: normalizeAssetDate(r[0]), zaikei: r[1], shares: r[2], index}))
+    .filter(r => r.date).map(r => ({...r, zaikei: strictAssetNumber(r.zaikei), shares: strictAssetNumber(r.shares)}));
+  const prices = ss.getSheetByName(SHEET_PRICES).getDataRange().getValues().slice(1)
+    .filter(r => String(r[1]) === '8316.T' && Number(r[2]) > 0)
+    .map(r => ({date: normalizeAssetDate(r[0]), close: Number(r[2])})).filter(r => r.date);
+  const sheet = ss.getSheetByName(SHEET_ASSETS);
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0] || [];
+  const names = ['一般財形残高', '持株会', '持株会株数', '持株会価格日', 'その他資産基準日'];
+  const columns = names.map(name => {
+    let index = headers.indexOf(name);
+    if (index < 0) { index = headers.length; headers.push(name); sheet.getRange(1, index+1).setValue(name); }
+    return index+1;
+  });
+  const result = {};
+  for (let i=1; i<rows.length; i++) {
+    const date = normalizeAssetDate(rows[i][0]);
+    if (!date) continue;
+    const value = supplementalForDate(date, records, prices);
+    result[i] = value;
+  }
+  if (rows.length > 1) {
+    columns.forEach((column, k) => sheet.getRange(2, column, rows.length-1, 1).setValues(rows.slice(1).map((row, i) => {
+      const v = result[i+1];
+      return [v ? [v.zaikei, v.employeeStock === null ? '' : v.employeeStock, v.shares, v.priceDate, v.recordDate][k] : ''];
+    })));
+  }
+  return result;
+}
+// 任意の時間主導トリガーでも実行できる。Web同期時にも更新する。
+function updateSupplementalAssets() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    initializeSheets(ss);
+    refreshSupplementalAssets(ss);
+  } finally { lock.releaseLock(); }
 }

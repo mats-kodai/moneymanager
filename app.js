@@ -911,7 +911,7 @@ function renderBudgetAssetSummary(year) {
     const rateEl = document.getElementById('budget-asset-rate');
 
     currentAssetEl.textContent = latestAsset ? formatCurrency(Number(latestAsset.total || 0)) : '—';
-    document.getElementById('budget-assets-as-of').textContent = latestAsset ? formatAssetAsOfDate(latestAsset.date) : '記録なし';
+    document.getElementById('budget-assets-as-of').textContent = latestAsset ? formatAssetAsOfDate(latestAsset.date) + (latestAsset.employeeStockMissing ? '（持株会未取得）' : '') : '記録なし';
     document.getElementById('budget-asset-target-label').textContent = `${year}年末資産目標`;
     targetEl.textContent = assetTarget ? formatCurrency(Number(assetTarget.targetAmount || 0)) : '—';
 
@@ -1438,7 +1438,7 @@ function renderDashboard() {
     const assetTrendEl = document.getElementById('assets-trend');
     document.getElementById('dashboard-cash').textContent = latestAsset ? formatCurrency(latestAsset.cash) : isFutureAssetMonth ? '-' : '—';
     document.getElementById('total-assets').textContent = latestAsset ? formatCurrency(latestAsset.total) : isFutureAssetMonth ? '-' : '—';
-    document.getElementById('assets-as-of').textContent = latestAsset ? formatAssetAsOfDate(latestAsset.date) : isFutureAssetMonth ? '' : '記録なし';
+    document.getElementById('assets-as-of').textContent = latestAsset ? formatAssetAsOfDate(latestAsset.date) + (latestAsset.employeeStockMissing ? '（持株会未取得）' : '') : isFutureAssetMonth ? '' : '記録なし';
     if (latestAsset && previousAsset) {
         const assetDiff = Number(latestAsset.total || 0) - Number(previousAsset.total || 0);
         assetTrendEl.className = `card-trend ${assetDiff >= 0 ? 'text-success' : 'text-danger'}`;
@@ -1573,6 +1573,8 @@ function renderAssetChart() {
         document.getElementById('hover-stocks').textContent = '¥0';
         document.getElementById('hover-trusts').textContent = '¥0';
         document.getElementById('hover-points').textContent = '¥0';
+        document.getElementById('hover-zaikei').textContent = '¥0';
+        document.getElementById('hover-employee-stock').textContent = '¥0';
     }
 
     const labels = sortedAssets.map(a => {
@@ -1661,6 +1663,7 @@ function renderAssetChart() {
             data: {
                 labels: labels,
                 datasets: [
+                    ...[{key: 'zaikei', label: '一般財形', color: theme.onSecondaryContainer}, {key: 'employeeStock', label: '持株会', color: theme.onPrimaryContainer}].map(item => ({label: item.label, data: sortedAssets.map(a => a[item.key] ?? null), borderColor: item.color, backgroundColor: colorWithAlpha(item.color, 0.24), fill: true, tension: 0.25})),
                     {
                         label: '預金・現金・暗号資産',
                         data: cash,
@@ -1793,6 +1796,8 @@ function updateAssetDetailPanel(data) {
     document.getElementById('hover-stocks').textContent = formatCurrency(data.stocks || 0);
     document.getElementById('hover-trusts').textContent = formatCurrency(data.trusts || 0);
     document.getElementById('hover-points').textContent = formatCurrency(data.points || 0);
+    document.getElementById('hover-zaikei').textContent = formatCurrency(data.zaikei || 0);
+    document.getElementById('hover-employee-stock').textContent = data.employeeStockMissing ? '未取得' : formatCurrency(data.employeeStock || 0);
 }
 
 // 月次収支推移 (過去6ヶ月)
@@ -2167,28 +2172,54 @@ function initFormLogic() {
     const formExp = document.getElementById('expense-form');
     const formInc = document.getElementById('income-form');
 
-    btnExp.addEventListener('click', () => {
-        btnExp.classList.add('active');
-        btnExp.setAttribute('aria-pressed', 'true');
-        btnInc.classList.remove('active');
-        btnInc.setAttribute('aria-pressed', 'false');
-        formExp.classList.remove('hidden');
-        formInc.classList.add('hidden');
+    ['expense', 'income', 'asset'].forEach(type => {
+        document.getElementById(`form-select-${type}`).addEventListener('click', () => {
+            ['expense', 'income', 'asset'].forEach(other => {
+                const active = type === other;
+                const button = document.getElementById(`form-select-${other}`);
+                button.classList.toggle('active', active);
+                button.setAttribute('aria-pressed', String(active));
+                document.getElementById(`${other}-form`).classList.toggle('hidden', !active);
+            });
+        });
     });
-
-    btnInc.addEventListener('click', () => {
-        btnInc.classList.add('active');
-        btnInc.setAttribute('aria-pressed', 'true');
-        btnExp.classList.remove('active');
-        btnExp.setAttribute('aria-pressed', 'false');
-        formInc.classList.remove('hidden');
-        formExp.classList.add('hidden');
+    const assetForm = document.getElementById('asset-form');
+    assetForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (assetForm.dataset.saving === 'true') return;
+        const data = new FormData(assetForm);
+        const payload = {type: 'asset', date: data.get('date'), zaikei: Number(data.get('zaikei')), shares: Number(data.get('shares'))};
+        if (!payload.date || !Number.isInteger(payload.zaikei) || payload.zaikei < 0 || !Number.isFinite(payload.shares) || payload.shares < 0) return;
+        assetForm.dataset.saving = 'true';
+        const button = assetForm.querySelector('[type="submit"]');
+        button.disabled = true;
+        showLoading(true);
+        try {
+            if (state.isDemoMode) {
+                const records = JSON.parse(localStorage.getItem('moneymanager_demo_other_assets') || '[]');
+                records.push(payload);
+                localStorage.setItem('moneymanager_demo_other_assets', JSON.stringify(records));
+                showToast('デモ保存しました。スプレッドシートには反映されません。', 'warning');
+            } else {
+                const response = await fetch(state.gasUrl, {method: 'POST', headers: {'Content-Type': 'text/plain'}, body: JSON.stringify(payload)});
+                if (!response.ok) throw new Error('資産を保存できませんでした。');
+                const result = await response.json();
+                if (result.status !== 'success') throw new Error(result.message || '資産を保存できませんでした。');
+                showToast('資産を記録しました。', 'success');
+                void syncWithGas({background: true, silent: true});
+            }
+            assetForm.reset();
+            document.getElementById('asset-date').value = payload.date;
+        } catch (error) { showToast(error.message, 'danger'); }
+        finally { button.disabled = false; delete assetForm.dataset.saving; showLoading(false); }
     });
 
     // 1. 支出フォーム初期日付
     const expDateInput = document.getElementById('exp-date');
     const today = new Date();
     expDateInput.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    document.getElementById('asset-date').value = expDateInput.value;
 
     // 支出カテゴリの挿入
     updateExpenseCategoryDropdown();
@@ -2400,6 +2431,8 @@ function resetForms() {
     document.getElementById('inc-other-deduct').value = 2260;
     
     calculateIncomeOutputs();
+    document.getElementById('asset-form').reset();
+    document.getElementById('asset-date').value = document.getElementById('exp-date').value;
     document.getElementById('form-select-expense').click();
 }
 
