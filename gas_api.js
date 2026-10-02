@@ -419,14 +419,23 @@ function strictAssetNumber(value) {
   if (!Number.isFinite(n) || n < 0) throw new Error("残高・株数は0以上の数値にしてください。");
   return n;
 }
+// Records use the share count effective on the record date.
+// Price rows also use the legal effective-date basis (not ex-rights basis).
+const EMPLOYEE_STOCK_SPLITS = [{date: '2026-10-01', ratio: 2}];
+function stockSplitFactor(fromDate, toDate) {
+  return EMPLOYEE_STOCK_SPLITS.filter(s => fromDate < s.date && s.date <= toDate)
+    .reduce((factor, s) => factor * s.ratio, 1);
+}
 function supplementalForDate(date, records, prices) {
   // 同日は最後に追記された記録を採用。未来の記録は参照しない。
   const record = records.filter(r => r.date <= date).sort((a,b) => a.date.localeCompare(b.date) || a.index-b.index).pop();
   if (!record) return {zaikei: 0, employeeStock: 0, employeeStockMissing: false, shares: 0, priceDate: '', recordDate: ''};
   const price = prices.filter(p => p.date <= date).sort((a,b) => a.date.localeCompare(b.date)).pop();
-  const missing = record.shares > 0 && (!price || (Date.parse(date)-Date.parse(price.date)) / 86400000 > 7);
-  return {zaikei: record.zaikei, shares: record.shares, recordDate: record.date,
-    employeeStock: missing ? null : record.shares === 0 ? 0 : Math.round(record.shares * price.close),
+  const shares = record.shares * stockSplitFactor(record.date, date);
+  const close = price ? price.close / stockSplitFactor(price.date, date) : 0;
+  const missing = shares > 0 && (!price || (Date.parse(date)-Date.parse(price.date)) / 86400000 > 7);
+  return {zaikei: record.zaikei, shares: shares, recordDate: record.date,
+    employeeStock: missing ? null : shares === 0 ? 0 : Math.round(shares * close),
     employeeStockMissing: missing, priceDate: price ? price.date : ''};
 }
 function refreshSupplementalAssets(ss) {

@@ -46,3 +46,16 @@ assert.equal(sheets['その他資産積立状況'].rows[1][3],10000);
 assert.deepEqual(sheets['その他資産積立状況'].rows[2],['2026-10-15',90000,2]);
 const get=context.doGet({});assert.equal(get.status,'success');assert.equal(get.assets[0].total,151300);
 console.log('Asset date boundaries, missing prices, zero/fractional values, append, double-count prevention: passed');
+
+const splitRecords = [{date:'2026-09-15',zaikei:45000,shares:1.575,index:0}];
+const splitPrices = [{date:'2026-09-28',close:4000},{date:'2026-09-29',close:4100},{date:'2026-10-01',close:2050}];
+assert.equal(calc('2026-09-29',splitRecords,splitPrices).shares,1.575);
+assert.equal(calc('2026-09-29',splitRecords,splitPrices).employeeStock,6458);
+assert.equal(calc('2026-10-01',splitRecords,splitPrices).shares,3.15);
+assert.equal(calc('2026-10-01',splitRecords,splitPrices).employeeStock,6458);
+assert.equal(calc('2026-10-01',splitRecords,splitPrices.slice(0,2)).employeeStock,6458);
+const newRecord = [...splitRecords,{date:'2026-10-01',zaikei:45000,shares:3.2,index:1}];
+assert.equal(calc('2026-10-02',newRecord,splitPrices).shares,3.2);
+assert.equal(calc('2026-10-02',newRecord,splitPrices).employeeStock,6560);
+assert.equal(calc('2026-10-09',splitRecords,splitPrices).employeeStockMissing,true);
+console.log('Split share and price bases, stale fallback, fractional shares, no double adjustment: passed');

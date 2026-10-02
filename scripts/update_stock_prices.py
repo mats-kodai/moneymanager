@@ -3,13 +3,16 @@ import math
 import os
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 HEADER = ['価格日', '銘柄', '終値', '取得日時']
 TICKER = '8316.T'
 RANGE = "'株価履歴'!A:D"
 STAGE = 'startup'
+# Official effective date and Yahoo/ex-rights date are different.
+# https://www.smfg.co.jp/investor/stock/overview.html
+KNOWN_SPLITS = {'2026-09-29': (2.0, date(2026, 10, 1))}
 
 
 def stage(name):
@@ -23,13 +26,42 @@ class UpdateError(RuntimeError):
 
 
 
+def split_events(history):
+    events = []
+    if 'Stock Splits' not in history:
+        raise UpdateError('SPLIT_COLUMN_MISSING')
+    for stamp, value in history['Stock Splits'].items():
+        ratio = float(value)
+        if not math.isfinite(ratio):
+            raise UpdateError('INVALID_SPLIT_DATA')
+        if ratio == 0:
+            continue
+        market_date = stamp.date().isoformat()
+        expected = KNOWN_SPLITS.get(market_date)
+        if expected is None or not math.isclose(ratio, expected[0], rel_tol=1e-9):
+            raise UpdateError('UNREVIEWED_STOCK_SPLIT')
+        events.append((stamp.date(), ratio, expected[1]))
+    first, last = history.index[0].date(), history.index[-1].date()
+    for market_date in KNOWN_SPLITS:
+        expected_date = date.fromisoformat(market_date)
+        if first <= expected_date <= last and not any(e[0] == expected_date for e in events):
+            raise UpdateError('EXPECTED_SPLIT_MISSING')
+    return events
+
+
 def price_rows(history, now, existing):
+    events = split_events(history)
     rows = []
     cutoff = now.date() if now.hour >= 18 else now.date() - timedelta(days=1)
     for stamp, record in history.iterrows():
         date = stamp.date()
         key = (date.isoformat(), TICKER)
         close = float(record['Close'])
+        # Yahoo Close is split-adjusted even with auto_adjust=False.
+        # Store each price in the share basis effective on its own price date.
+        for market_date, ratio, effective_date in events:
+            if date < effective_date:
+                close *= ratio
         if date > cutoff or key in existing or not math.isfinite(close) or close <= 0:
             continue
         rows.append([key[0], TICKER, close, now.isoformat()])
@@ -60,8 +92,8 @@ def main():
         raise UpdateError('PRICE_DATA_STALE')
     # 検証時はGoogle認証も書き込みも行わない。
     stage('validate_splits')
-    if 'Stock Splits' in history and (history['Stock Splits'] != 0).any():
-        raise UpdateError('STOCK_SPLIT_DETECTED')
+    for market_date, ratio, effective_date in split_events(history):
+        print(f'stock_update reviewed_split market_date={market_date} effective_date={effective_date} ratio={ratio:g}', flush=True)
     if '--check-only' in sys.argv:
         print('株価取得確認: 成功')
         return
