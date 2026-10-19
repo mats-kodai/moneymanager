@@ -6,7 +6,7 @@ const dom = new JSDOM(fs.readFileSync('index.html','utf8'),{url:'https://example
 const w=dom.window;
 const src=fs.readFileSync('app.js','utf8');
 const section=src.slice(src.indexOf('function initFormLogic()'),src.indexOf('// --- Social Insurance Calculator Modal ---'));
-w.eval('const state={isDemoMode:false,gasUrl:"https://example.org/api",expenseCategories:[]}; function showLoading(){} function showToast(){} function syncWithGas(){} '+section+';initFormLogic();');
+w.eval('let dataGeneration=0;let demoEdit=null;const state={isDemoMode:false,gasUrl:"https://example.org/api",expenseCategories:[]}; function showLoading(){} function showToast(){} function syncWithGas(){} '+section+';initFormLogic();');
 const d=w.document;
 d.getElementById('form-select-asset').click();
 assert.equal(d.getElementById('asset-form').classList.contains('hidden'),false);

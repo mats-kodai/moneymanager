@@ -990,3 +990,48 @@ input:focus, select:focus, textarea:focus { border: 2px solid var(--md-sys-color
 .annual-whole-label::before { left:0; } .annual-whole-label::after { right:0; }
 .annual-balance-fallback > div { display:flex; justify-content:space-between; gap:16px; padding:8px 0; }
 @media(max-width:760px) { .annual-balance-card-new { padding:20px 16px; } }
+
+/* Privacy and presentation mode */
+.dashboard-assets { position: relative; padding-inline: 60px; }
+.amount-visibility-button {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    display: grid; place-items: center; width: 44px; height: 44px; border: 0;
+    border-radius: 50%; color: var(--md-sys-color-on-surface-variant);
+    background: var(--md-sys-color-surface-container-high); cursor: pointer;
+}
+.amount-visibility-button:hover { background: var(--md-sys-color-secondary-container); }
+.amount-visibility-button:focus-visible { outline: 3px solid var(--md-sys-color-primary); outline-offset: 3px; }
+.setting-switch { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; cursor: pointer; }
+.setting-switch input { appearance: none; width: 48px; height: 28px; min-height: 28px; padding: 0; flex: 0 0 48px; border: 2px solid var(--md-sys-color-outline); border-radius: 28px; background: var(--md-sys-color-surface-container-highest); cursor: pointer; }
+.setting-switch input::before { content: ''; display: block; width: 18px; height: 18px; margin: 3px; border-radius: 50%; background: var(--md-sys-color-outline); transition: transform .15s; }
+.setting-switch input:checked { background: var(--md-sys-color-primary); border-color: var(--md-sys-color-primary); }
+.setting-switch input:checked::before { transform: translateX(20px); background: var(--md-sys-color-on-primary); }
+.setting-switch input:focus-visible { outline: 3px solid var(--md-sys-color-primary); outline-offset: 4px; }
+.privacy-chart-message { padding: 24px 16px; text-align: center; color: var(--md-sys-color-on-surface-variant); border-radius: 16px; background: var(--md-sys-color-surface-container); }
+.privacy-chart-message strong { display: block; font-size: 1rem; color: var(--md-sys-color-on-surface); }
+.privacy-chart-message p { margin: 8px 0 0; font-size: .875rem; line-height: 1.7; }
+.chart-wrapper.privacy-chart { height: auto !important; min-height: 0 !important; }
+[hidden] { display: none !important; }
+.amounts-hidden .text-success, .amounts-hidden .text-danger, .amounts-hidden .text-primary,
+.amounts-hidden .card-value, .amounts-hidden .card-trend, .amounts-hidden #annual-balance-total,
+.amounts-hidden #annual-savings-rate, .amounts-hidden .expense-entry-amount { color: var(--md-sys-color-on-surface) !important; }
+.amounts-hidden .is-over-budget { background: var(--md-sys-color-surface-container); color: var(--md-sys-color-on-surface); }
+.amounts-hidden .category-color-dot { background: var(--md-sys-color-outline) !important; }
+.amounts-hidden input[type="number"], .amounts-hidden canvas, .amounts-hidden .chart-toggles-wrapper { display: none !important; }
+/* Static startup values must never flash before JS replaces them with masks. */
+.amounts-hidden .card-value:not(:has(*)) { font-variant-numeric: tabular-nums; }
+html.amounts-hidden:not(.privacy-ready) main { visibility: hidden; }
+.private-input-mask { display: block; min-width: 0; flex: 1; color: var(--md-sys-color-on-surface-variant); }
+.demo-record-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+.demo-record-actions .btn { min-height: 36px; padding: 6px 12px; font-size: .8rem; }
+.demo-edit-status { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-radius: 12px; background: var(--md-sys-color-secondary-container); }
+@media (max-width: 480px) {
+    .dashboard-assets { padding-inline: 52px; }
+    .amount-visibility-button { right: 6px; }
+    .dashboard-assets .card-value { font-size: clamp(1.5rem, 7vw, 2.1rem); overflow-wrap: anywhere; }
+    .dashboard-assets .asset-cash { flex-wrap: wrap; justify-content: center; }
+}
+.amounts-hidden .category-chart-layout, .amounts-hidden .annual-category-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.amounts-hidden .category-chart-layout .privacy-chart, .amounts-hidden .annual-category-layout .privacy-chart { max-width: none; width: 100%; }
+.amounts-hidden .category-top-list { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 0; }
+@media (max-width: 600px) { .amounts-hidden .category-top-list { grid-template-columns: minmax(0, 1fr); } }

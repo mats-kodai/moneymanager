@@ -6,10 +6,20 @@ const initialMonth = new Date();
 initialMonth.setDate(1);
 initialMonth.setHours(0, 0, 0, 0);
 
+const PRIVACY_KEY = 'moneymanager_hide_amounts';
+const DEMO_MODE_KEY = 'moneymanager_demo_mode';
+const MASKED_AMOUNT = '••••';
+let dataGeneration = 0;
+let syncRequest = 0;
+let demoEdit = null;
+let demoBaseAssets = [];
+
 const DATA_CACHE_KEY = 'moneymanager_api_cache_v1';
 const DATA_CACHE_VERSION = 3;
 const DATA_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const API_DATA_FIELDS = ['assets', 'incomes', 'expenses', 'subscriptions', 'budgetPlans', 'specialBudgets', 'annualBudgets', 'itemBudgets', 'assetTargets'];
+
+const DEFAULT_EXPENSE_CATEGORIES = ["個人_食費", "交友_食費", "交通費", "家賃", "日用品・被服費", "医療費", "娯楽費", "教育費・研鑽費", "交際費", "旅費", "通信費", "雑費", "サブスク"];
 
 // --- App State ---
 const state = {
@@ -23,7 +33,7 @@ const state = {
     annualBudgets: [], // 年度予算
     itemBudgets: [],   // 費目別予算
     assetTargets: [],  // 暦年末資産目標
-    expenseCategories: ["個人_食費", "交友_食費", "交通費", "家賃", "日用品・被服費", "医療費", "娯楽費", "教育費・研鑽費", "交際費", "旅費", "通信費", "雑費", "サブスク"],
+    expenseCategories: [...DEFAULT_EXPENSE_CATEGORIES],
     incomeTypes: ["給与所得", "配当所得", "譲渡所得", "その他"],
     currentMonth: initialMonth,
     annualReportYear: initialMonth.getFullYear(),
@@ -35,7 +45,10 @@ const state = {
     specialBudgetPage: 0,
     showAssetsBreakdown: false, // 資産の内訳表示フラグ
     assetRange: 'all',          // 資産グラフの表示期間 ('all', '1m', '3m', '6m', '1y')
-    isDemoMode: true,
+    hideAmounts: localStorage.getItem(PRIVACY_KEY) === 'true',
+    demoRequested: localStorage.getItem(DEMO_MODE_KEY) === 'true',
+    isDemoMode: !localStorage.getItem('kakeibo_gas_url') || localStorage.getItem(DEMO_MODE_KEY) === 'true',
+    otherAssets: [],
     syncState: 'idle',
     lastSyncedAt: null
 };
@@ -109,85 +122,6 @@ function initMaterialInteractions() {
     Chart.defaults.plugins.tooltip.bodyColor = theme.inverseOnSurface;
 }
 
-// --- Generic demo data (actual spreadsheet values are never bundled in GitHub) ---
-const MOCK_ASSETS = [
-    { date: "2026/06/27", total: 1210000, cash: 500000, stocks: 180000, trusts: 510000, points: 20000 },
-    { date: "2026/07/25", total: 1280000, cash: 530000, stocks: 190000, trusts: 540000, points: 20000 },
-    { date: "2026/08/08", total: 1310000, cash: 545000, stocks: 195000, trusts: 550000, points: 20000 },
-    { date: "2026/08/22", total: 1350000, cash: 560000, stocks: 200000, trusts: 570000, points: 20000 }
-];
-
-const MOCK_INCOMES = [
-    { yearMonth: "2026年06月", incomeType: "給与所得", grossPay: 300000, incomeTax: 7000, inhabitantTax: 0, socialInsurance: 40000, otherDeductions: 3000, deductionTotal: 50000, transportation: 0, takeHomePay: 250000 },
-    { yearMonth: "2026年07月", incomeType: "給与所得", grossPay: 310000, incomeTax: 8000, inhabitantTax: 0, socialInsurance: 41000, otherDeductions: 3000, deductionTotal: 52000, transportation: 0, takeHomePay: 258000 },
-    { yearMonth: "2026年08月", incomeType: "給与所得", grossPay: 310000, incomeTax: 8000, inhabitantTax: 0, socialInsurance: 41000, otherDeductions: 3000, deductionTotal: 52000, transportation: 0, takeHomePay: 258000 }
-];
-
-const MOCK_EXPENSES = [
-    { yearMonth: "2026/7", date: "2026/07/08", category: "個人_食費", amount: 6800, description: "食材" },
-    { yearMonth: "2026/7", date: "2026/07/18", category: "交友_食費", amount: 9000, description: "会食" },
-    { yearMonth: "2026/7", date: "2026/07/25", category: "日用品・被服費", amount: 7200, description: "日用品" },
-    { yearMonth: "2026/8", date: "2026/08/03", category: "家賃", amount: 14000, description: "住居費" },
-    { yearMonth: "2026/8", date: "2026/08/06", category: "個人_食費", amount: 8200, description: "食材" },
-    { yearMonth: "2026/8", date: "2026/08/09", category: "交通費", amount: 3600, description: "交通" },
-    { yearMonth: "2026/8", date: "2026/08/14", category: "娯楽費", amount: 12000, description: "イベント" },
-    { yearMonth: "2026/8", date: "2026/08/18", category: "交友_食費", amount: 7800, description: "会食" },
-    { yearMonth: "2026/8", date: "2026/08/21", category: "日用品・被服費", amount: 4300, description: "日用品" },
-    { yearMonth: "2026/8", date: "2026/08/24", category: "旅費", amount: 28000, description: "小旅行" },
-    { yearMonth: "2026/9", date: "2026/09/12", category: "日用品・被服費", amount: 45000, description: "特別予算" }
-];
-
-const MOCK_SUBSCRIPTIONS = [
-    { year: 2026, name: "クラウドストレージ", amount: 600, paymentCount: 12, annualAmount: 7200, monthlyAmount: 600 },
-    { year: 2026, name: "動画配信", amount: 1000, paymentCount: 12, annualAmount: 12000, monthlyAmount: 1000 }
-];
-
-const MOCK_BUDGET_PLANS = Array.from({ length: 5 }, (_, yearOffset) => {
-    const year = 2026 + yearOffset;
-    const regularIncome = 320000 + yearOffset * 10000;
-    const regularExpense = 180000 + yearOffset * 5000;
-    return Array.from({ length: 12 }, (_, monthIndex) => {
-        const isBonusMonth = monthIndex === 5 || monthIndex === 11;
-        const grossIncomePlan = isBonusMonth ? regularIncome + 300000 : regularIncome;
-        const takeHomePlan = Math.round(grossIncomePlan * 0.84);
-        return {
-            yearMonth: `${year}/${monthIndex + 1}`,
-            grossIncomePlan,
-            takeHomePlan,
-            recurringExpensePlan: regularExpense,
-            balancePlan: takeHomePlan - regularExpense
-        };
-    });
-}).flat();
-
-const MOCK_SPECIAL_BUDGETS = [
-    { year: 2026, budgetAmount: 800000, spentAmount: 73000, remainingAmount: 727000 },
-    { year: 2027, budgetAmount: 800000, spentAmount: 0, remainingAmount: 800000 },
-    { year: 2028, budgetAmount: 900000, spentAmount: 0, remainingAmount: 900000 },
-    { year: 2029, budgetAmount: 1000000, spentAmount: 0, remainingAmount: 1000000 },
-    { year: 2030, budgetAmount: 1000000, spentAmount: 0, remainingAmount: 1000000 }
-];
-
-const MOCK_ANNUAL_BUDGETS = [
-    { fiscalYear: "FY2027", takeHomePlan: 4900000, recurringMonthly: 175000, recurringAnnual: 2100000, specialAnnual: 800000, totalBudget: 2900000, assetIncreaseTarget: 2000000, yearEndPlan: 4395947, minimumAssetTarget: 4296960, buffer: 98987 },
-    { fiscalYear: "FY2028", takeHomePlan: 5000000, recurringMonthly: 180000, recurringAnnual: 2160000, specialAnnual: 800000, totalBudget: 2960000, assetIncreaseTarget: 2040000, yearEndPlan: 6435947, minimumAssetTarget: 6197974, buffer: 237973 },
-    { fiscalYear: "FY2029", takeHomePlan: 5100000, recurringMonthly: 185000, recurringAnnual: 2220000, specialAnnual: 800000, totalBudget: 3020000, assetIncreaseTarget: 2080000, yearEndPlan: 8515947, minimumAssetTarget: 8098987, buffer: 416960 },
-    { fiscalYear: "FY2030", takeHomePlan: 5200000, recurringMonthly: 190000, recurringAnnual: 2280000, specialAnnual: 800000, totalBudget: 3080000, assetIncreaseTarget: 2120000, yearEndPlan: 10635947, minimumAssetTarget: 10000000, buffer: 635947 }
-];
-
-const MOCK_ITEM_BUDGETS = [
-    { fiscalYear: "FY2027", budgetType: "特別", item: "旅行", unit: "年", budgetAmount: 500000, expenseCategory: "旅費", minimumAmount: 0 },
-    { fiscalYear: "FY2027", budgetType: "特別", item: "大型購入・引越し", unit: "年", budgetAmount: 300000, expenseCategory: "*", minimumAmount: 100000 }
-];
-
-const MOCK_ASSET_TARGETS = [
-    { calendarYear: 2026, targetAmount: 2395947, targetType: "基準目標", note: "試験運用" },
-    { calendarYear: 2027, targetAmount: 4296960, targetType: "最低目標", note: "" },
-    { calendarYear: 2028, targetAmount: 6197974, targetType: "最低目標", note: "" },
-    { calendarYear: 2029, targetAmount: 8098987, targetType: "最低目標", note: "" },
-    { calendarYear: 2030, targetAmount: 10000000, targetType: "最終目標", note: "" }
-];
-
 // --- Chart Instances ---
 let assetTrendChart = null;
 let monthlyTrendChart = null;
@@ -208,9 +142,10 @@ document.addEventListener('DOMContentLoaded', () => {
     initFormLogic();
     initCalculatorModal();
     initSettings();
+    initPrivacy();
 
     // キャッシュがあれば即時表示し、最新データは常にバックグラウンドで取得する。
-    if (state.gasUrl) {
+    if (state.gasUrl && !state.demoRequested) {
         const restoredFromCache = loadApiDataCache();
         void syncWithGas({ background: restoredFromCache, silent: restoredFromCache });
     } else {
@@ -472,7 +407,9 @@ function initMonthSelector() {
 
     syncBtn.addEventListener('click', () => {
         closeHeaderMenu(false);
-        if (state.gasUrl) {
+        if (state.isDemoMode) {
+            showToast('デモ表示中です。実データへの切り替えは設定から行えます。');
+        } else if (state.gasUrl) {
             syncWithGas();
         } else {
             showToast('GAS URLが未設定です。「設定」タブから保存してください。', 'danger');
@@ -604,7 +541,11 @@ function updateConnectionStatusUI() {
 
     demoBadge.classList.toggle('hidden', !state.isDemoMode);
     lastSyncText.textContent = formatLastSyncText(state.lastSyncedAt);
-    disconnectBtn.classList.toggle('hidden', state.isDemoMode);
+    disconnectBtn.classList.toggle('hidden', !state.gasUrl);
+    document.getElementById('demo-mode-toggle').checked = state.isDemoMode;
+    document.getElementById('demo-mode-note').textContent = state.isDemoMode ? '架空の1年分のデータを表示中。変更はデモ終了・再読み込みで破棄されます。' : '接続を保持したまま、架空のデータに切り替えます。';
+    document.getElementById('demo-edit-status').hidden = !demoEdit;
+    lastSyncText.textContent = state.isDemoMode ? 'デモ表示中' : formatLastSyncText(state.lastSyncedAt);
 }
 
 function formatLastSyncText(timestamp) {
@@ -661,6 +602,7 @@ function getApiDataSnapshot() {
 }
 
 function saveApiDataCache() {
+    if (state.isDemoMode || state.demoRequested) return;
     try {
         const savedAt = Number.isFinite(state.lastSyncedAt) ? state.lastSyncedAt : Date.now();
         localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({
@@ -679,6 +621,7 @@ function clearApiDataCache() {
 }
 
 function loadApiDataCache() {
+    if (state.demoRequested) return false;
     try {
         const rawCache = localStorage.getItem(DATA_CACHE_KEY);
         if (!rawCache) return false;
@@ -701,7 +644,7 @@ function loadApiDataCache() {
         state.syncState = 'cached';
         state.lastSyncedAt = cache.savedAt;
         updateConnectionStatusUI();
-        renderDashboard();
+        refreshAllViews();
         return true;
     } catch (error) {
         console.warn('Cache Load Error:', error);
@@ -711,11 +654,15 @@ function loadApiDataCache() {
 }
 
 function refreshSyncedViews() {
-    refreshActiveViews();
+    refreshAllViews();
 }
 
 async function syncWithGas({ background = false, silent = false } = {}) {
-    if (!state.gasUrl) return;
+    if (!state.gasUrl || state.isDemoMode || state.demoRequested) return;
+    const generation = dataGeneration;
+    const request = ++syncRequest;
+    const sourceUrl = state.gasUrl;
+    const stale = () => generation !== dataGeneration || request !== syncRequest || sourceUrl !== state.gasUrl || state.isDemoMode;
     if (!background) showLoading(true);
     if (!state.isDemoMode) {
         state.syncState = 'syncing';
@@ -728,6 +675,7 @@ async function syncWithGas({ background = false, silent = false } = {}) {
         if (!response.ok) throw new Error('ネットワーク接続が失敗しました。');
         
         const data = await response.json();
+        if (stale()) return;
         
         if (data.status === 'success') {
             applyApiData(data);
@@ -743,6 +691,7 @@ async function syncWithGas({ background = false, silent = false } = {}) {
             throw new Error(data.message || 'データパースエラー');
         }
     } catch (error) {
+        if (stale()) return;
         console.error('Sync Error:', error);
         if (background && !state.isDemoMode) {
             state.syncState = 'offline';
@@ -753,30 +702,107 @@ async function syncWithGas({ background = false, silent = false } = {}) {
             loadDemoMode();
         }
     } finally {
-        if (!background) showLoading(false);
+        if (!stale() && !background) showLoading(false);
     }
 }
 
+function clearRenderedData() {
+    // Destroy the old source's canvases before any asynchronous source transition.
+    for (const chart of [assetTrendChart, monthlyTrendChart, categoryDistributionChart, annualCashflowChart, annualCategoryChart, budgetProgressChart]) chart?.destroy();
+    assetTrendChart = monthlyTrendChart = categoryDistributionChart = annualCashflowChart = annualCategoryChart = budgetProgressChart = null;
+}
+
+function refreshAllViews() {
+    renderDashboard();
+    renderAnnualReport();
+    renderBudgetView();
+    renderExpensesList();
+    renderIncomesList();
+    renderSubscriptionsList();
+    calculateIncomeOutputs();
+    renderSettings();
+    document.documentElement.classList.add('privacy-ready');
+}
+
+function resetDataContext() {
+    dataGeneration++;
+    clearRenderedData();
+    showLoading(false);
+    demoEdit = null;
+    resetForms();
+    document.querySelectorAll('#calc-modal input').forEach(input => { input.value = ''; });
+    document.getElementById('calc-modal').classList.add('hidden');
+    document.getElementById('expense-search').value = '';
+    document.getElementById('filter-expense-cat').value = 'all';
+    expenseFilterState = {search: '', category: 'all', scope: 'all'};
+    document.querySelector('.demo-undo')?.remove();
+    document.getElementById('toast').classList.add('hidden');
+    document.getElementById('calc-sum-total').textContent = formatCurrency(0);
+}
+
 function loadDemoMode() {
+    resetDataContext();
     state.isDemoMode = true;
     state.syncState = 'idle';
     state.lastSyncedAt = null;
+    const data = createDemoData(initialMonth.getFullYear());
+    applyApiData(data);
+    state.otherAssets = data.otherAssets;
+    demoBaseAssets = data.assets;
+    rebuildDemoAssets();
+    state.expenseCategories = [...DEFAULT_EXPENSE_CATEGORIES];
+    state.currentMonth = new Date(initialMonth);
+    state.annualReportYear = initialMonth.getFullYear();
+    state.budgetReportYear = initialMonth.getFullYear();
+    state.budgetMonth = initialMonth.getMonth() + 1;
+    state.specialBudgetMonth = 'all';
+    state.specialBudgetPage = 0;
+    // Discard persistence from legacy demo versions; real cache and connection are untouched.
+    ['kakeibo_demo_expenses_v2', 'kakeibo_demo_incomes_v2', 'moneymanager_demo_other_assets'].forEach(key => localStorage.removeItem(key));
+    updateExpenseCategoryDropdown();
+    updateMonthDisplay();
     updateConnectionStatusUI();
+    refreshAllViews();
+}
 
-    // v2キーに分離し、旧デモデータや実データ風サンプルを公開画面へ持ち越さない
-    const localExpenses = localStorage.getItem('kakeibo_demo_expenses_v2');
-    const localIncomes = localStorage.getItem('kakeibo_demo_incomes_v2');
-    state.assets = MOCK_ASSETS;
-    state.incomes = localIncomes ? JSON.parse(localIncomes) : MOCK_INCOMES;
-    state.expenses = localExpenses ? JSON.parse(localExpenses) : MOCK_EXPENSES;
-    state.subscriptions = MOCK_SUBSCRIPTIONS;
-    state.budgetPlans = MOCK_BUDGET_PLANS;
-    state.specialBudgets = MOCK_SPECIAL_BUDGETS;
-    state.annualBudgets = MOCK_ANNUAL_BUDGETS;
-    state.itemBudgets = MOCK_ITEM_BUDGETS;
-    state.assetTargets = MOCK_ASSET_TARGETS;
+function rebuildDemoAssets() {
+    state.assets = demoBaseAssets.map(asset => {
+        const effective = state.otherAssets.filter(row => safeParseDate(row.date) <= safeParseDate(asset.date))
+            .sort((a, b) => safeParseDate(b.date) - safeParseDate(a.date));
+        const latest = effective[0];
+        const zaikei = latest?.zaikei || 0;
+        const shares = latest?.shares || 0;
+        const employeeStock = Math.round(shares * asset.demoPrice);
+        return {...asset, zaikei, shares, employeeStock, total: asset.demoBaseTotal + zaikei + employeeStock};
+    });
+}
 
-    renderDashboard();
+async function setDemoMode(enabled) {
+    if (!enabled && !state.gasUrl) {
+        document.getElementById('demo-mode-toggle').checked = true;
+        showToast('実データを表示するには接続URLを設定してください。', 'warning');
+        document.getElementById('gas-url').focus();
+        return;
+    }
+    state.demoRequested = enabled;
+    localStorage.setItem(DEMO_MODE_KEY, String(enabled));
+    if (enabled) {
+        loadDemoMode();
+    } else {
+        resetDataContext();
+        state.isDemoMode = false;
+        state.otherAssets = [];
+        demoBaseAssets = [];
+        applyApiData({});
+        state.expenseCategories = [...DEFAULT_EXPENSE_CATEGORIES];
+        initCategories();
+        updateExpenseCategoryDropdown();
+        updateConnectionStatusUI();
+        refreshAllViews();
+        const restored = loadApiDataCache();
+        refreshAllViews();
+        await syncWithGas({background: restored, silent: restored});
+    }
 }
 
 // --- Dashboard Update Date Formatting Helper ---
@@ -831,7 +857,20 @@ function getLatestAssetRecords() {
 function setProgress(id, numerator, denominator, disabled = false) {
     const bar = document.getElementById(id);
     const track = bar.closest('.progress-track');
+    let message = track.nextElementSibling;
+    if (!message?.classList.contains('privacy-chart-message')) {
+        track.insertAdjacentHTML('afterend', hiddenChartMessage());
+        message = track.nextElementSibling;
+    }
+    message.hidden = !state.hideAmounts;
     const percentage = disabled || denominator <= 0 ? 0 : Math.max(0, Math.min(100, numerator / denominator * 100));
+    if (state.hideAmounts) {
+        track.removeAttribute('aria-valuenow');
+        bar.style.width = '0%';
+        track.hidden = true;
+        return;
+    }
+    track.hidden = false;
     bar.style.width = `${percentage}%`;
     track.setAttribute('aria-valuenow', String(Math.round(percentage)));
     track.classList.toggle('is-disabled', disabled);
@@ -919,7 +958,7 @@ function renderBudgetAssetSummary(year) {
         const currentAmount = Number(latestAsset.total || 0);
         const targetAmount = Number(assetTarget.targetAmount || 0);
         const gap = targetAmount - currentAmount;
-        gapLabelEl.textContent = gap >= 0 ? '目標まで' : '目標超過';
+        gapLabelEl.textContent = state.hideAmounts ? '目標との差額' : gap >= 0 ? '目標まで' : '目標超過';
         gapEl.textContent = formatCurrency(Math.abs(gap));
         gapEl.className = `card-value${gap < 0 ? ' text-success' : ''}`;
         rateEl.textContent = targetAmount > 0 ? `進捗 ${formatPercentage(currentAmount / targetAmount * 100)}` : '—';
@@ -943,11 +982,11 @@ function renderBudgetProgressSummary(report) {
     document.getElementById('budget-expense-status').textContent = formatCurrency(report.expenseActual);
     document.getElementById('budget-income-plan').textContent = report.hasPlan ? formatCurrency(report.incomePlan) : '—';
     document.getElementById('budget-expense-plan').textContent = report.hasPlan ? formatCurrency(report.expensePlan) : '—';
-    incomeDiffEl.textContent = report.hasPlan ? `${incomeDifference >= 0 ? '+' : ''}${formatCurrency(incomeDifference)}` : '—';
+    incomeDiffEl.textContent = report.hasPlan ? `${!state.hideAmounts && (incomeDifference >= 0) ? '+' : ''}${formatCurrency(incomeDifference)}` : '—';
     incomeDiffEl.className = report.hasPlan ? (incomeDifference >= 0 ? 'text-success' : 'text-danger') : '';
     expenseRemainingEl.textContent = report.hasPlan ? formatCurrency(Math.abs(expenseRemaining)) : '—';
     expenseRemainingEl.className = report.hasPlan ? (expenseRemaining >= 0 ? 'text-success' : 'text-danger') : '';
-    expenseRemainingEl.closest('div').querySelector('dt').textContent = report.hasPlan && expenseRemaining < 0 ? '超過' : '残額';
+    expenseRemainingEl.closest('div').querySelector('dt').textContent = !state.hideAmounts && report.hasPlan && expenseRemaining < 0 ? '超過' : '残額';
 }
 
 function renderBudgetMonthlyTable(months) {
@@ -956,7 +995,7 @@ function renderBudgetMonthlyTable(months) {
 
     months.forEach(month => {
         const incomeDifferenceText = month.hasPlan
-            ? `${month.incomeDifference >= 0 ? '+' : ''}${formatCurrency(month.incomeDifference)}`
+            ? `${!state.hideAmounts && (month.incomeDifference >= 0) ? '+' : ''}${formatCurrency(month.incomeDifference)}`
             : '—';
         const expenseRemainingText = month.hasPlan ? formatCurrency(month.expenseRemaining) : '—';
         const row = document.createElement('tr');
@@ -974,6 +1013,9 @@ function renderBudgetMonthlyTable(months) {
 }
 
 function renderBudgetProgressChart(report) {
+    if (preparePrivateChart('budget-progress-chart', budgetProgressChart)) {
+        budgetProgressChart = null; return;
+    }
     const ctx = document.getElementById('budget-progress-chart').getContext('2d');
     const theme = getChartTheme();
     const isExpense = state.budgetMetric === 'expense';
@@ -1058,14 +1100,14 @@ function renderSpecialBudgetSection() {
     const percentage = budgetAmount > 0 ? Math.max(0, Math.min(100, spentAmount / budgetAmount * 100)) : 0;
     document.getElementById('special-budget-title').textContent = `${year}年の特別予算`;
     document.getElementById('special-budget-summary').innerHTML = `
-        <div class="special-budget-balance${budget && remainingAmount < 0 ? ' is-over-budget' : ''}">
-            <span class="budget-line-label">${budget && remainingAmount < 0 ? '予算超過' : 'あと使える金額'}</span>
+        <div class="special-budget-balance${!state.hideAmounts && budget && remainingAmount < 0 ? ' is-over-budget' : ''}">
+            <span class="budget-line-label">${!state.hideAmounts && budget && remainingAmount < 0 ? '予算超過' : 'あと使える金額'}</span>
             <strong>${budget ? formatCurrency(Math.abs(remainingAmount)) : '—'}</strong>
             <dl class="budget-compare-list">
                 <div><dt>年間予算</dt><dd>${budget ? formatCurrency(budgetAmount) : '未設定'}</dd></div>
                 <div><dt>使用済み</dt><dd>${formatCurrency(spentAmount)}</dd></div>
             </dl>
-            <div class="progress-track${budget ? '' : ' is-disabled'}" role="progressbar" aria-label="特別予算の消化率" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(percentage)}"><span style="width: ${percentage}%"></span></div>
+            ${state.hideAmounts ? hiddenChartMessage() : `<div class="progress-track${budget ? '' : ' is-disabled'}" role="progressbar" aria-label="特別予算の消化率" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(percentage)}"><span style="width: ${percentage}%"></span></div>`}
         </div>`;
 
     const monthSelect = document.getElementById('special-budget-month');
@@ -1112,7 +1154,7 @@ function renderBudgetMonthDetail(months) {
     const month = months.find(item => item.month === state.budgetMonth);
     const metrics = [
         { label: '額面収入', plan: month.incomePlan, actual: month.incomeActual, difference: month.incomeDifference, differenceLabel: '予定との差額' },
-        { label: '経常支出', plan: month.expensePlan, actual: month.expenseActual, difference: month.expenseRemaining, differenceLabel: month.hasPlan && month.expenseRemaining < 0 ? '予算超過' : '予算残額' }
+        { label: '経常支出', plan: month.expensePlan, actual: month.expenseActual, difference: month.expenseRemaining, differenceLabel: !state.hideAmounts && month.hasPlan && month.expenseRemaining < 0 ? '予算超過' : '予算残額' }
     ];
     document.getElementById('budget-month-detail').innerHTML = `
         <h3 class="budget-month-detail-title">${state.budgetReportYear}年${month.month}月</h3>
@@ -1123,7 +1165,7 @@ function renderBudgetMonthDetail(months) {
                 <dl class="budget-month-values">
                     <div><dt>予定</dt><dd>${month.hasPlan ? formatCurrency(metric.plan) : '—'}</dd></div>
                     <div><dt>実績</dt><dd>${formatCurrency(metric.actual)}</dd></div>
-                    <div><dt>${metric.differenceLabel}</dt><dd class="${month.hasPlan ? metric.difference >= 0 ? 'text-success' : 'text-danger' : ''}">${month.hasPlan ? `${index === 0 && metric.difference >= 0 ? '+' : ''}${formatCurrency(index === 1 ? Math.abs(metric.difference) : metric.difference)}` : '—'}</dd></div>
+                    <div><dt>${metric.differenceLabel}</dt><dd class="${month.hasPlan ? metric.difference >= 0 ? 'text-success' : 'text-danger' : ''}">${month.hasPlan ? `${!state.hideAmounts && (index === 0 && metric.difference >= 0) ? '+' : ''}${formatCurrency(index === 1 ? Math.abs(metric.difference) : metric.difference)}` : '—'}</dd></div>
                 </dl>
             </section>`).join('')}</div>`;
 }
@@ -1251,7 +1293,7 @@ function renderAnnualMonthlyTable(months) {
     const tbody = document.getElementById('annual-monthly-tbody');
     tbody.replaceChildren();
     // 通貨単位は表の上にまとめ、スマートフォンでも月ごとの比較に幅を使う。
-    const amountFormatter = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 });
+    const amountFormatter = {format: value => state.hideAmounts ? MASKED_AMOUNT : new Intl.NumberFormat('ja-JP', {maximumFractionDigits: 0}).format(value)};
 
     months.forEach(month => {
         const row = document.createElement('tr');
@@ -1267,6 +1309,9 @@ function renderAnnualMonthlyTable(months) {
 }
 
 function renderAnnualCashflowChart(report) {
+    if (preparePrivateChart('annual-cashflow-chart', annualCashflowChart)) {
+        annualCashflowChart = null; return;
+    }
     const ctx = document.getElementById('annual-cashflow-chart').getContext('2d');
     const theme = getChartTheme();
     const chartFont = { family: 'Roboto, "Noto Sans JP", sans-serif', size: 11 };
@@ -1365,6 +1410,8 @@ function renderAnnualCategoryChart(report) {
         list.appendChild(item);
     });
 
+    if (preparePrivateChart('annual-category-chart', annualCategoryChart)) { annualCategoryChart = null; return; }
+
     if (annualCategoryChart) annualCategoryChart.destroy();
 
     if (values.length === 0) {
@@ -1442,7 +1489,7 @@ function renderDashboard() {
     if (latestAsset && previousAsset) {
         const assetDiff = Number(latestAsset.total || 0) - Number(previousAsset.total || 0);
         assetTrendEl.className = `card-trend ${assetDiff >= 0 ? 'text-success' : 'text-danger'}`;
-        assetTrendEl.textContent = `前回記録比: ${assetDiff >= 0 ? '+' : ''}${formatCurrency(assetDiff)}`;
+        assetTrendEl.textContent = `前回記録比: ${!state.hideAmounts && (assetDiff >= 0) ? '+' : ''}${formatCurrency(assetDiff)}`;
     } else {
         assetTrendEl.className = 'card-trend';
         assetTrendEl.textContent = isFutureAssetMonth ? '' : latestAsset ? '比較データなし' : '資産記録なし';
@@ -1450,12 +1497,12 @@ function renderDashboard() {
 
     const incomeDiff = totalIncome - prevTotalIncome;
     document.getElementById('total-income').textContent = formatCurrency(totalIncome);
-    document.getElementById('income-desc').textContent = `前月比: ${incomeDiff >= 0 ? '+' : ''}${formatCurrency(incomeDiff)}`;
+    document.getElementById('income-desc').textContent = `前月比: ${!state.hideAmounts && (incomeDiff >= 0) ? '+' : ''}${formatCurrency(incomeDiff)}`;
     document.getElementById('total-expenses').textContent = formatCurrency(totalExpenses);
     const expenseDiff = totalExpenses - prevTotalExpenses;
     const expenseTrendEl = document.getElementById('expense-desc-card');
     expenseTrendEl.className = `card-trend ${expenseDiff > 0 ? 'text-danger' : 'text-success'}`;
-    expenseTrendEl.textContent = `前月比: ${expenseDiff >= 0 ? '+' : ''}${formatCurrency(expenseDiff)}`;
+    expenseTrendEl.textContent = `前月比: ${!state.hideAmounts && (expenseDiff >= 0) ? '+' : ''}${formatCurrency(expenseDiff)}`;
 
     const currentBalance = totalIncome - totalExpenses;
     const previousBalance = prevTotalIncome - prevTotalExpenses;
@@ -1465,7 +1512,7 @@ function renderDashboard() {
     balanceEl.className = `card-value ${currentBalance >= 0 ? 'text-primary' : 'text-danger'}`;
     const balanceTrendEl = document.getElementById('balance-trend');
     balanceTrendEl.className = `card-trend ${balanceDiff >= 0 ? 'text-success' : 'text-danger'}`;
-    balanceTrendEl.textContent = `前月比: ${balanceDiff >= 0 ? '+' : ''}${formatCurrency(balanceDiff)}`;
+    balanceTrendEl.textContent = `前月比: ${!state.hideAmounts && (balanceDiff >= 0) ? '+' : ''}${formatCurrency(balanceDiff)}`;
 
     document.getElementById('category-chart-title').textContent = `${state.currentMonth.getFullYear()}年${state.currentMonth.getMonth() + 1}月の支出内訳`;
     document.getElementById('recent-expenses-title').textContent = `${state.currentMonth.getFullYear()}年${state.currentMonth.getMonth() + 1}月の最近の支出`;
@@ -1511,10 +1558,11 @@ function renderExpenseLedger(container, expenses, emptyMessage) {
             entry.innerHTML = `
                 <div class="expense-entry-main">
                     <span class="expense-entry-category">${escapeHtml(expense.category || '項目なし')}</span>
-                    <strong class="expense-entry-amount">-${formatCurrency(Number(expense.amount) || 0)}</strong>
+                    <strong class="expense-entry-amount">${state.hideAmounts ? '' : '-'}${formatCurrency(Number(expense.amount) || 0)}</strong>
                 </div>
                 ${description ? `<p class="expense-entry-note">${escapeHtml(description)}</p>` : ''}
             `;
+            if (state.isDemoMode && container.id === 'expense-list') entry.appendChild(createDemoRecordActions('expense', expense));
             group.appendChild(entry);
         });
 
@@ -1538,6 +1586,11 @@ function renderRecentExpenses(currentMonthExpenses) {
 // 週次資産推移チャート
 // 週次資産推移チャート
 function renderAssetChart() {
+    if (preparePrivateChart('asset-trend-chart', assetTrendChart)) {
+        const latest = getLatestAssetRecords()[0];
+        updateAssetDetailPanel(latest || {});
+        assetTrendChart = null; return;
+    }
     const ctx = document.getElementById('asset-trend-chart').getContext('2d');
     
     // 日付昇順でソート
@@ -1568,13 +1621,13 @@ function renderAssetChart() {
     } else {
         // データがない場合は空欄リセット
         document.getElementById('hover-date').textContent = '-';
-        document.getElementById('hover-total').textContent = '¥0';
-        document.getElementById('hover-cash').textContent = '¥0';
-        document.getElementById('hover-stocks').textContent = '¥0';
-        document.getElementById('hover-trusts').textContent = '¥0';
-        document.getElementById('hover-points').textContent = '¥0';
-        document.getElementById('hover-zaikei').textContent = '¥0';
-        document.getElementById('hover-employee-stock').textContent = '¥0';
+        document.getElementById('hover-total').textContent = formatCurrency(0);
+        document.getElementById('hover-cash').textContent = formatCurrency(0);
+        document.getElementById('hover-stocks').textContent = formatCurrency(0);
+        document.getElementById('hover-trusts').textContent = formatCurrency(0);
+        document.getElementById('hover-points').textContent = formatCurrency(0);
+        document.getElementById('hover-zaikei').textContent = formatCurrency(0);
+        document.getElementById('hover-employee-stock').textContent = formatCurrency(0);
     }
 
     const labels = sortedAssets.map(a => {
@@ -1802,6 +1855,9 @@ function updateAssetDetailPanel(data) {
 
 // 月次収支推移 (過去6ヶ月)
 function renderCashflowChart() {
+    if (preparePrivateChart('monthly-trend-chart', monthlyTrendChart)) {
+        monthlyTrendChart = null; return;
+    }
     const ctx = document.getElementById('monthly-trend-chart').getContext('2d');
     const theme = getChartTheme();
     const chartFont = { family: 'Roboto, "Noto Sans JP", sans-serif', size: 11 };
@@ -1978,12 +2034,14 @@ function renderCategoryDoughnut(currentMonthExpenses, totalSubsMonthly) {
         const previous = filterExpensesByMonth(state.expenses, previousDate).filter(exp => (exp.category || '未分類') === category).reduce((sum, exp) => sum + Number(exp.amount || 0), 0) + (category === 'サブスク' ? totalSubsMonthly : 0);
         const note = document.createElement('small');
         const diff = amount - previous;
-        note.textContent = `（前月比:${diff > 0 ? '+' : ''}${formatCurrency(diff)}）`;
+        note.textContent = `（前月比:${!state.hideAmounts && (diff > 0) ? '+' : ''}${formatCurrency(diff)}）`;
         button.appendChild(note);
         button.addEventListener('click', () => openExpenseDetails(category));
         item.appendChild(button);
         topList.appendChild(item);
     });
+
+    if (preparePrivateChart('category-distribution-chart', categoryDistributionChart)) { categoryDistributionChart = null; return; }
 
     if (categoryDistributionChart) {
         categoryDistributionChart.destroy();
@@ -2146,6 +2204,7 @@ function renderIncomesList() {
             <td data-label="交通費">${formatCurrency(inc.transportation)}</td>
             <td data-label="手取り" class="text-right text-success font-bold">${formatCurrency(inc.takeHomePay)}</td>
         `;
+        if (state.isDemoMode) row.firstElementChild.appendChild(createDemoRecordActions('income', inc));
         tbody.appendChild(row);
     });
 }
@@ -2174,6 +2233,10 @@ function initFormLogic() {
 
     ['expense', 'income', 'asset'].forEach(type => {
         document.getElementById(`form-select-${type}`).addEventListener('click', () => {
+            if (demoEdit && demoEdit.type !== type) {
+                demoEdit = null;
+                document.getElementById('demo-edit-status').hidden = true;
+            }
             ['expense', 'income', 'asset'].forEach(other => {
                 const active = type === other;
                 const button = document.getElementById(`form-select-${other}`);
@@ -2186,7 +2249,8 @@ function initFormLogic() {
     const assetForm = document.getElementById('asset-form');
     assetForm.addEventListener('submit', async event => {
         event.preventDefault();
-        if (assetForm.dataset.saving === 'true') return;
+        if (state.hideAmounts || assetForm.dataset.saving === 'true') return;
+        const generation = dataGeneration;
         const data = new FormData(assetForm);
         const payload = {type: 'asset', date: data.get('date'), zaikei: Number(data.get('zaikei')), shares: Number(data.get('shares'))};
         if (!payload.date || !Number.isInteger(payload.zaikei) || payload.zaikei < 0 || !Number.isFinite(payload.shares) || payload.shares < 0) return;
@@ -2196,22 +2260,24 @@ function initFormLogic() {
         showLoading(true);
         try {
             if (state.isDemoMode) {
-                const records = JSON.parse(localStorage.getItem('moneymanager_demo_other_assets') || '[]');
-                records.push(payload);
-                localStorage.setItem('moneymanager_demo_other_assets', JSON.stringify(records));
+                const demoDate = payload.date.replace(/-/g, '/');
+                state.otherAssets = state.otherAssets.filter(row => safeParseDate(row.date).getTime() !== safeParseDate(demoDate).getTime());
+                state.otherAssets.push({...payload, date: demoDate, id: `demo-asset-${Date.now()}`});
+                rebuildDemoAssets();
                 showToast('デモ保存しました。スプレッドシートには反映されません。', 'warning');
             } else {
                 const response = await fetch(state.gasUrl, {method: 'POST', headers: {'Content-Type': 'text/plain'}, body: JSON.stringify(payload)});
                 if (!response.ok) throw new Error('資産を保存できませんでした。');
                 const result = await response.json();
+                if (generation !== dataGeneration) return;
                 if (result.status !== 'success') throw new Error(result.message || '資産を保存できませんでした。');
                 showToast('資産を記録しました。', 'success');
                 void syncWithGas({background: true, silent: true});
             }
             assetForm.reset();
             document.getElementById('asset-date').value = payload.date;
-        } catch (error) { showToast(error.message, 'danger'); }
-        finally { button.disabled = false; delete assetForm.dataset.saving; showLoading(false); }
+        } catch (error) { if (generation === dataGeneration) showToast(error.message, 'danger'); }
+        finally { button.disabled = Boolean(state.hideAmounts); delete assetForm.dataset.saving; showLoading(false); }
     });
 
     // 1. 支出フォーム初期日付
@@ -2244,6 +2310,8 @@ function initFormLogic() {
     // 3. 支出フォームの送信
     formExp.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (state.hideAmounts) return;
+        const generation = dataGeneration;
         const fd = new FormData(formExp);
         const date = fd.get('date');
         const amount = Number(fd.get('amount'));
@@ -2266,8 +2334,7 @@ function initFormLogic() {
         try {
             if (state.isDemoMode) {
                 newExpense.id = 'demo-exp-' + Date.now();
-                state.expenses.unshift(newExpense);
-                localStorage.setItem('kakeibo_demo_expenses_v2', JSON.stringify(state.expenses));
+                saveDemoRecord('expense', newExpense);
                 showToast('【デモモード】ローカルに支出を一時保存しました。スプレッドシートには反映されません。', 'warning');
                 onTransactionSaved('expense');
             } else {
@@ -2286,6 +2353,7 @@ function initFormLogic() {
                 let data;
                 try {
                     data = await response.json();
+                    if (generation !== dataGeneration) return;
                 } catch (jsonErr) {
                     throw new Error("GASからのレスポンスをJSONとして解析できませんでした。Webアプリの公開設定が「全員(Anyone)」になっているか確認してください。");
                 }
@@ -2299,6 +2367,7 @@ function initFormLogic() {
                 }
             }
         } catch (err) {
+            if (generation !== dataGeneration) return;
             console.error("Save Transaction Error:", err);
             showToast('保存に失敗しました: ' + err.message, 'danger');
         } finally {
@@ -2309,6 +2378,8 @@ function initFormLogic() {
     // 4. 収入フォームの送信
     formInc.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (state.hideAmounts) return;
+        const generation = dataGeneration;
         const fd = new FormData(formInc);
         
         // 年月のフォーマット変更 (2026-07 -> 2026年07月 にしてスプレッドシートの表記ゆれに合わせる)
@@ -2346,8 +2417,7 @@ function initFormLogic() {
         try {
             if (state.isDemoMode) {
                 newIncome.id = 'demo-inc-' + Date.now();
-                state.incomes.unshift(newIncome);
-                localStorage.setItem('kakeibo_demo_incomes_v2', JSON.stringify(state.incomes));
+                saveDemoRecord('income', newIncome);
                 showToast('【デモモード】ローカルに収入を一時保存しました。スプレッドシートには反映されません。', 'warning');
                 onTransactionSaved('income');
             } else {
@@ -2366,6 +2436,7 @@ function initFormLogic() {
                 let data;
                 try {
                     data = await response.json();
+                    if (generation !== dataGeneration) return;
                 } catch (jsonErr) {
                     throw new Error("GASからのレスポンスをJSONとして解析できませんでした。Webアプリの公開設定が「全員(Anyone)」になっているか確認してください。");
                 }
@@ -2379,6 +2450,7 @@ function initFormLogic() {
                 }
             }
         } catch (err) {
+            if (generation !== dataGeneration) return;
             console.error("Save Transaction Error:", err);
             showToast('保存に失敗しました: ' + err.message, 'danger');
         } finally {
@@ -2417,6 +2489,9 @@ function calculateIncomeOutputs() {
 }
 
 function resetForms() {
+    demoEdit = null;
+    const editStatus = document.getElementById('demo-edit-status');
+    if (editStatus) editStatus.hidden = true;
     const expForm = document.getElementById('expense-form');
     const incForm = document.getElementById('income-form');
     
@@ -2437,6 +2512,9 @@ function resetForms() {
 }
 
 function onTransactionSaved(type) {
+    demoEdit = null;
+    const editStatus = document.getElementById('demo-edit-status');
+    if (editStatus) editStatus.hidden = true;
     // 保存したフォームだけをクリアし、入力画面と対象日付は維持する。
     if (type === 'expense') {
         const date = document.getElementById('exp-date').value;
@@ -2484,7 +2562,7 @@ function initCalculatorModal() {
         pension.value = '';
         employ.value = '';
         care.value = '';
-        sumTotalEl.textContent = '¥0';
+        sumTotalEl.textContent = formatCurrency(0);
         
         modal.classList.remove('hidden');
     });
@@ -2511,8 +2589,11 @@ function initCalculatorModal() {
 
 // --- Settings Section Logic ---
 function initSettings() {
+    document.getElementById('demo-mode-toggle').addEventListener('change', event => { void setDemoMode(event.target.checked); });
     document.getElementById('save-gas-url').addEventListener('click', async () => {
         const url = document.getElementById('gas-url').value.trim();
+        const generation = dataGeneration;
+        const request = ++syncRequest;
         if (!url) {
             showToast('有効なURLを入力してください。', 'danger');
             return;
@@ -2531,11 +2612,20 @@ function initSettings() {
             let data;
             try {
                 data = await response.json();
+                if (generation !== dataGeneration || request !== syncRequest) return;
             } catch (jsonErr) {
                 throw new Error("GASからのレスポンスをJSONとして解析できませんでした。Webアプリの公開設定が「全員(Anyone)」になっているか確認してください。");
             }
 
             if (data.status === 'success') {
+                resetDataContext();
+                state.demoRequested = false;
+                localStorage.setItem(DEMO_MODE_KEY, 'false');
+                state.otherAssets = [];
+                demoBaseAssets = [];
+                state.expenseCategories = [...DEFAULT_EXPENSE_CATEGORIES];
+                initCategories();
+                updateExpenseCategoryDropdown();
                 state.gasUrl = url;
                 localStorage.setItem('kakeibo_gas_url', url);
                 state.isDemoMode = false;
@@ -2546,12 +2636,13 @@ function initSettings() {
                 saveApiDataCache();
 
                 updateConnectionStatusUI();
-                renderDashboard();
+                refreshAllViews();
                 showToast('スプレッドシート連携に成功しました！', 'success');
             } else {
                 throw new Error(data.message || 'データ構造が正常ではありません。');
             }
         } catch (err) {
+            if (generation !== dataGeneration || request !== syncRequest) return;
             console.error("Connection Test Error:", err);
             showToast('接続に失敗しました: ' + err.message, 'danger');
         } finally {
@@ -2573,7 +2664,7 @@ function initSettings() {
     document.getElementById('save-categories').addEventListener('click', () => {
         const input = document.getElementById('settings-expense-categories').value;
         state.expenseCategories = input.split(',').map(s => s.trim()).filter(Boolean);
-        localStorage.setItem('kakeibo_expense_categories', JSON.stringify(state.expenseCategories));
+        if (!state.isDemoMode) localStorage.setItem('kakeibo_expense_categories', JSON.stringify(state.expenseCategories));
 
         updateExpenseCategoryDropdown();
         renderSettings();
@@ -2582,7 +2673,10 @@ function initSettings() {
 }
 
 function renderSettings() {
-    document.getElementById('gas-url').value = state.gasUrl;
+    const urlInput = document.getElementById('gas-url');
+    urlInput.value = '';
+    urlInput.placeholder = state.gasUrl ? '接続済み（変更するときだけURLを入力）' : 'GAS Web App URLを入力';
+    updateConnectionStatusUI();
     document.getElementById('settings-expense-categories').value = state.expenseCategories.join(', ');
 }
 
@@ -2590,10 +2684,11 @@ function renderSettings() {
 
 // 金額フォーマット (¥1,234)
 function formatCurrency(amount) {
-    return '¥' + Math.round(amount).toLocaleString('ja-JP');
+    return state.hideAmounts ? MASKED_AMOUNT : '¥' + Math.round(amount).toLocaleString('ja-JP');
 }
 
 function formatPercentage(value) {
+    if (state.hideAmounts) return MASKED_AMOUNT;
     return Number.isFinite(value) ? `${value.toFixed(1)}%` : '—';
 }
 
@@ -2731,8 +2826,8 @@ function renderDashboardBudget(total) {
     ];
     rows.forEach(([label, value, action, hint]) => {
         const button = document.createElement('button'); button.type = 'button'; button.className = 'budget-shortcut';
-        button.setAttribute('aria-label', `${label} ${value === null ? '予算未設定' : formatCurrency(value)}${value !== null && value < 0 ? ' 予算超過' : ''}：${hint}`);
-        button.innerHTML = `<span class="shortcut-copy"><span>${label}</span><strong class="${value !== null && value < 0 ? 'text-danger' : ''}">${value === null ? '予算未設定' : formatCurrency(value)}</strong>${value !== null && value < 0 ? '<small class="text-danger">予算超過</small>' : ''}</span><svg class="icon shortcut-chevron" aria-hidden="true"><use href="#icon-chevron-right"></use></svg>`;
+        button.setAttribute('aria-label', `${label} ${value === null ? '予算未設定' : formatCurrency(value)}${!state.hideAmounts && value !== null && value < 0 ? ' 予算超過' : ''}：${hint}`);
+        button.innerHTML = `<span class="shortcut-copy"><span>${label}</span><strong class="${!state.hideAmounts && value !== null && value < 0 ? 'text-danger' : ''}">${value === null ? '予算未設定' : formatCurrency(value)}</strong>${!state.hideAmounts && value !== null && value < 0 ? '<small class="text-danger">予算超過</small>' : ''}</span><svg class="icon shortcut-chevron" aria-hidden="true"><use href="#icon-chevron-right"></use></svg>`;
         button.addEventListener('click', action); list.appendChild(button);
     });
 }
@@ -2741,11 +2836,12 @@ function renderAnnualBalanceSummary(report) {
     const { totalIncome: income, totalExpenses: expenses, balance, savingsRate } = report;
     const deficit = balance < 0;
     const panel = document.querySelector('.annual-balance-card-new');
-    panel.classList.toggle('is-deficit', deficit);
+    panel.classList.toggle('is-deficit', !state.hideAmounts && deficit);
     document.getElementById('annual-summary-year').textContent = `${report.year}年`;
-    document.getElementById('annual-balance-total').textContent = `${balance > 0 ? '+' : ''}${formatCurrency(balance)}`;
+    document.getElementById('annual-balance-total').textContent = `${!state.hideAmounts && (balance > 0) ? '+' : ''}${formatCurrency(balance)}`;
     document.getElementById('annual-savings-rate').textContent = formatPercentage(savingsRate);
     const graphic = document.getElementById('annual-balance-graphic');
+    if (state.hideAmounts) { graphic.removeAttribute('style'); graphic.innerHTML = hiddenChartMessage(); return; }
     // Negative net income/expenses cannot form a non-negative stacked bar.
     if (income < 0 || expenses < 0) {
         graphic.innerHTML = `<dl class="annual-balance-fallback"><div><dt>手取り収入</dt><dd>${formatCurrency(income)}</dd></div><div><dt>総支出</dt><dd>${formatCurrency(expenses)}</dd></div></dl>`;
@@ -2767,4 +2863,134 @@ function renderAnnualBalanceSummary(report) {
             ${balance !== 0 ? `<div class="annual-gap-label">${second}</div>` : ''}
         </div>
         <div class="annual-whole-label"><span>${whole}</span><strong>${formatCurrency(total)}</strong></div>`;
+}
+
+// --- Presentation privacy: values are formatted as masks, not merely blurred. ---
+function hiddenChartMessage() {
+    return '<div class="privacy-chart-message"><strong>グラフは現在表示されません</strong><p>表示するには金額を表示する設定にしてください</p></div>';
+}
+
+function preparePrivateChart(id, chart) {
+    const canvas = document.getElementById(id);
+    const wrapper = canvas.closest('.chart-wrapper');
+    let message = wrapper.querySelector('.privacy-chart-message');
+    if (!message) {
+        wrapper.insertAdjacentHTML('beforeend', hiddenChartMessage());
+        message = wrapper.querySelector('.privacy-chart-message');
+    }
+    wrapper.classList.toggle('privacy-chart', state.hideAmounts);
+    canvas.hidden = state.hideAmounts;
+    message.hidden = !state.hideAmounts;
+    if (state.hideAmounts) chart?.destroy();
+    return state.hideAmounts;
+}
+
+function initPrivacy() {
+    document.getElementById('toggle-amount-visibility').addEventListener('click', () => {
+        state.hideAmounts = !state.hideAmounts;
+        localStorage.setItem(PRIVACY_KEY, String(state.hideAmounts));
+        updatePrivacyControls();
+        refreshAllViews();
+    });
+    document.getElementById('settings-hide-amounts').addEventListener('change', event => {
+        state.hideAmounts = event.target.checked;
+        localStorage.setItem(PRIVACY_KEY, String(state.hideAmounts));
+        updatePrivacyControls();
+        refreshAllViews();
+    });
+    document.getElementById('cancel-demo-edit').addEventListener('click', resetForms);
+    updatePrivacyControls();
+}
+
+function updatePrivacyControls() {
+    document.documentElement.classList.toggle('amounts-hidden', state.hideAmounts);
+    const button = document.getElementById('toggle-amount-visibility');
+    const label = state.hideAmounts ? '金額を表示する' : '金額を非表示にする';
+    button.setAttribute('aria-label', label);
+    button.title = label;
+    button.setAttribute('aria-pressed', String(state.hideAmounts));
+    button.querySelector('use').setAttribute('href', state.hideAmounts ? '#icon-eye-off' : '#icon-eye');
+    document.getElementById('settings-hide-amounts').checked = state.hideAmounts;
+    // Hide number inputs from both sight and accessibility tree. Keep typed values in memory
+    // so toggling privacy does not erase a draft, and prevent submitting unseen amounts.
+    document.querySelectorAll('input[type="number"]').forEach(input => {
+        let mask = input.nextElementSibling;
+        if (!mask?.classList.contains('private-input-mask')) {
+            mask = document.createElement('span');
+            mask.className = 'private-input-mask form-input';
+            mask.textContent = MASKED_AMOUNT;
+            input.after(mask);
+        }
+        input.hidden = state.hideAmounts;
+        input.disabled = state.hideAmounts;
+        mask.hidden = !state.hideAmounts;
+    });
+    document.querySelectorAll('#tab-add-transaction [type="submit"], #btn-open-calc, #btn-apply-calc').forEach(button => { button.disabled = state.hideAmounts; });
+    document.getElementById('private-form-note').hidden = !state.hideAmounts;
+    const sum = [...document.querySelectorAll('#calc-modal input')].reduce((total, input) => total + (Number(input.value) || 0), 0);
+    document.getElementById('calc-sum-total').textContent = formatCurrency(sum);
+}
+
+// Demo actions deliberately never call the API or save records in the real cache.
+function saveDemoRecord(type, record) {
+    if (!state.isDemoMode) return;
+    const field = type === 'expense' ? 'expenses' : 'incomes';
+    const index = demoEdit?.type === type ? state[field].findIndex(row => row.id === demoEdit.id) : -1;
+    if (index >= 0) state[field][index] = {...record, id: demoEdit.id};
+    else state[field].unshift(record);
+    demoEdit = null;
+}
+
+function createDemoRecordActions(type, record) {
+    const actions = document.createElement('span');
+    actions.className = 'demo-record-actions';
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'btn btn-text';
+    edit.textContent = '編集';
+    edit.disabled = state.hideAmounts;
+    edit.addEventListener('click', () => {
+        if (!state.isDemoMode || state.hideAmounts) return;
+        showMainTab('add-transaction');
+        document.getElementById(`form-select-${type}`).click();
+        demoEdit = {type, id: record.id};
+        const form = document.getElementById(`${type}-form`);
+        if (type === 'expense') {
+            const date = safeParseDate(record.date);
+            form.elements.date.value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            ['amount', 'category', 'description'].forEach(key => { form.elements[key].value = record[key] ?? ''; });
+        } else {
+            const month = parseYearMonth(record.yearMonth);
+            form.elements.yearMonth.value = `${month.year}-${String(month.month + 1).padStart(2, '0')}`;
+            ['incomeType', 'grossPay', 'incomeTax', 'inhabitantTax', 'socialInsurance', 'otherDeductions', 'transportation'].forEach(key => { form.elements[key].value = record[key] ?? ''; });
+            calculateIncomeOutputs();
+        }
+        document.getElementById('demo-edit-status').hidden = false;
+    });
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'btn btn-text';
+    remove.textContent = '削除';
+    remove.addEventListener('click', () => {
+        if (!state.isDemoMode) return;
+        const field = type === 'expense' ? 'expenses' : 'incomes';
+        const index = state[field].findIndex(row => row.id === record.id);
+        if (index < 0) return;
+        const [removed] = state[field].splice(index, 1);
+        refreshAllViews();
+        showToast('デモの明細を削除しました。');
+        const toast = document.getElementById('toast');
+        toast.querySelector('.demo-undo')?.remove();
+        const undo = document.createElement('button');
+        undo.type = 'button'; undo.className = 'btn btn-text demo-undo'; undo.textContent = '元に戻す';
+        const generation = dataGeneration;
+        undo.addEventListener('click', () => {
+            if (generation !== dataGeneration || !state.isDemoMode) return;
+            state[field].splice(index, 0, removed);
+            undo.remove(); refreshAllViews(); toast.classList.add('hidden');
+        });
+        toast.appendChild(undo);
+    });
+    actions.append(edit, remove);
+    return actions;
 }

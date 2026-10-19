@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        // Apply privacy before the first paint (including static placeholders).
+        try { if (localStorage.getItem('moneymanager_hide_amounts') === 'true') document.documentElement.classList.add('amounts-hidden'); } catch (_) {}
+    </script>
     <title>MoneyManager - 個人向けスマート家計簿</title>
     <link rel="icon" href="favicon.ico?v=1" sizes="16x16 32x32 48x48">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=1">
@@ -14,11 +18,13 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <!-- Custom Style -->
-    <link rel="stylesheet" href="styles.css?v=4.9.2">
+    <link rel="stylesheet" href="styles.css?v=4.11.0">
 </head>
 <body>
     <!-- Self-contained interface icons: reliable even when external icon fonts are blocked. -->
     <svg class="icon-sprite" aria-hidden="true">
+        <symbol id="icon-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+        <symbol id="icon-eye-off" viewBox="0 0 24 24"><path d="m3 3 18 18M10 5.2A13 13 0 0 1 12 5c6.5 0 10 7 10 7a18 18 0 0 1-3.5 4.5M6 6.5A20 20 0 0 0 2 12s3.5 7 10 7a13 13 0 0 0 5-1M10 10a3 3 0 0 0 4 4"/></symbol>
         <symbol id="icon-dashboard" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9h-9zM14 3.2A9 9 0 0 1 20.8 10H14z"/></symbol>
         <symbol id="icon-receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21zm3 5h6m-6 4h6m-6 4h4"/></symbol>
         <symbol id="icon-add" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8m-4-4h8"/></symbol>
@@ -72,6 +78,7 @@
             <section id="tab-dashboard" class="tab-pane active">
                 <!-- Flat monthly overview -->
                 <section class="dashboard-assets" aria-label="資産残高">
+                    <button type="button" id="toggle-amount-visibility" class="amount-visibility-button" aria-label="金額を非表示にする" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#icon-eye"></use></svg></button>
                     <div class="asset-main"><span class="card-label">総資産</span><div class="card-value" id="total-assets">¥0</div></div>
                     <div class="asset-cash"><span>うち現金・預金</span><strong id="dashboard-cash">—</strong></div>
                     <div class="asset-meta"><div class="asset-as-of" id="assets-as-of">記録なし</div><div class="card-trend" id="assets-trend">比較データなし</div></div>
@@ -472,6 +479,8 @@
 
             <!-- Tab: Add Transaction -->
             <section id="tab-add-transaction" class="tab-pane">
+                <p id="private-form-note" class="section-note" hidden>金額を表示すると入力できます。</p>
+                <div id="demo-edit-status" class="demo-edit-status" hidden>デモの明細を編集中 <button type="button" class="btn btn-text" id="cancel-demo-edit">キャンセル</button></div>
                 <div class="form-layout">
                     <!-- Form Container -->
                     <div class="form-card">
@@ -608,6 +617,12 @@
             <!-- Tab: Settings -->
             <section id="tab-settings" class="tab-pane">
                 <div class="settings-grid">
+                    <div class="settings-card">
+                        <h3>表示設定</h3>
+                        <label class="setting-switch" for="settings-hide-amounts"><span>金額を非表示</span><input type="checkbox" role="switch" id="settings-hide-amounts"></label>
+                        <label class="setting-switch" for="demo-mode-toggle"><span>デモモード</span><input type="checkbox" role="switch" id="demo-mode-toggle" aria-describedby="demo-mode-note"></label>
+                        <p id="demo-mode-note" class="settings-desc"></p>
+                    </div>
                     <!-- GAS Integration -->
                     <div class="settings-card">
                         <h3><svg class="icon" aria-hidden="true"><use href="#icon-link"></use></svg> Googleスプレッドシート連携</h3>
@@ -616,7 +631,7 @@
                         <div class="settings-form">
                             <div class="form-group">
                                 <label for="gas-url">GAS Web App URL</label>
-                                <input type="url" id="gas-url" placeholder="https://script.google.com/macros/s/.../exec" class="form-input">
+                                <input type="password" autocomplete="off" spellcheck="false" id="gas-url" placeholder="https://script.google.com/macros/s/.../exec" class="form-input">
                             </div>
                             
                             <div class="settings-actions">
@@ -748,6 +763,7 @@
     </div>
 
     <!-- Script File -->
-    <script src="app.js?v=4.10.0"></script>
+    <script src="demo-data.js?v=4.11.0"></script>
+    <script src="app.js?v=4.11.0"></script>
 </body>
 </html>
