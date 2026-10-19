@@ -49,13 +49,13 @@ async function setup({storage = {}, fetch} = {}) {
     assert.equal(d.getElementById('total-assets').textContent, '••••');
     assert.equal(w.Chart.live.size, 0, 'All existing charts destroyed');
     assert.equal(d.querySelectorAll('canvas:not([hidden])').length, 0);
-    assert.equal(d.getElementById('exp-amount').hidden, true);
-    assert.equal(d.getElementById('asset-shares').hidden, true);
+    assert.equal(d.getElementById('exp-amount').hidden, false);
+    assert.equal(d.getElementById('asset-shares').hidden, false);
     assert.equal(d.getElementById('toggle-amount-visibility').getAttribute('aria-label'), '金額を表示する');
     for (const tab of ['dashboard', 'annual-report', 'budget', 'transactions', 'add-transaction', 'settings']) {
         run(`showMainTab('${tab}')`);
         assert.equal(w.Chart.live.size, 0);
-        assert.doesNotMatch(d.querySelector(`#tab-${tab}`).textContent, /[¥￥][\d,]+|[+−-]••••|\d+\.\d+%/);
+        if (tab !== 'add-transaction') assert.doesNotMatch(d.querySelector(`#tab-${tab}`).textContent, /[¥￥][\d,]+|[+−-]••••|\d+\.\d+%/);
     }
     for (const view of ['monthly', 'special']) run(`state.budgetView='${view}';renderBudgetView()`);
     assert.doesNotMatch(d.getElementById('tab-budget').textContent, /[¥￥][\d,]+|予算超過|目標超過/);

@@ -737,7 +737,7 @@ function resetDataContext() {
     expenseFilterState = {search: '', category: 'all', scope: 'all'};
     document.querySelector('.demo-undo')?.remove();
     document.getElementById('toast').classList.add('hidden');
-    document.getElementById('calc-sum-total').textContent = formatCurrency(0);
+    document.getElementById('calc-sum-total').textContent = formatCurrency(0, false);
 }
 
 function loadDemoMode() {
@@ -2249,7 +2249,7 @@ function initFormLogic() {
     const assetForm = document.getElementById('asset-form');
     assetForm.addEventListener('submit', async event => {
         event.preventDefault();
-        if (state.hideAmounts || assetForm.dataset.saving === 'true') return;
+        if (assetForm.dataset.saving === 'true') return;
         const generation = dataGeneration;
         const data = new FormData(assetForm);
         const payload = {type: 'asset', date: data.get('date'), zaikei: Number(data.get('zaikei')), shares: Number(data.get('shares'))};
@@ -2277,7 +2277,7 @@ function initFormLogic() {
             assetForm.reset();
             document.getElementById('asset-date').value = payload.date;
         } catch (error) { if (generation === dataGeneration) showToast(error.message, 'danger'); }
-        finally { button.disabled = Boolean(state.hideAmounts); delete assetForm.dataset.saving; showLoading(false); }
+        finally { button.disabled = false; delete assetForm.dataset.saving; showLoading(false); }
     });
 
     // 1. 支出フォーム初期日付
@@ -2310,7 +2310,6 @@ function initFormLogic() {
     // 3. 支出フォームの送信
     formExp.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (state.hideAmounts) return;
         const generation = dataGeneration;
         const fd = new FormData(formExp);
         const date = fd.get('date');
@@ -2378,7 +2377,6 @@ function initFormLogic() {
     // 4. 収入フォームの送信
     formInc.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (state.hideAmounts) return;
         const generation = dataGeneration;
         const fd = new FormData(formInc);
         
@@ -2484,8 +2482,8 @@ function calculateIncomeOutputs() {
     const deductionTotal = incTax + inhabTax + social + other;
     const takeHome = gross - deductionTotal - transport;
 
-    document.getElementById('preview-deduction-total').textContent = formatCurrency(deductionTotal);
-    document.getElementById('preview-takehome-pay').textContent = formatCurrency(takeHome);
+    document.getElementById('preview-deduction-total').textContent = formatCurrency(deductionTotal, false);
+    document.getElementById('preview-takehome-pay').textContent = formatCurrency(takeHome, false);
 }
 
 function resetForms() {
@@ -2548,7 +2546,7 @@ function initCalculatorModal() {
                     (Number(pension.value) || 0) +
                     (Number(employ.value) || 0) +
                     (Number(care.value) || 0);
-        sumTotalEl.textContent = formatCurrency(sum);
+        sumTotalEl.textContent = formatCurrency(sum, false);
         return sum;
     }
 
@@ -2562,7 +2560,7 @@ function initCalculatorModal() {
         pension.value = '';
         employ.value = '';
         care.value = '';
-        sumTotalEl.textContent = formatCurrency(0);
+        sumTotalEl.textContent = formatCurrency(0, false);
         
         modal.classList.remove('hidden');
     });
@@ -2683,8 +2681,8 @@ function renderSettings() {
 // --- Helper Functions ---
 
 // 金額フォーマット (¥1,234)
-function formatCurrency(amount) {
-    return state.hideAmounts ? MASKED_AMOUNT : '¥' + Math.round(amount).toLocaleString('ja-JP');
+function formatCurrency(amount, hideAmounts = state.hideAmounts) {
+    return hideAmounts ? MASKED_AMOUNT : '¥' + Math.round(amount).toLocaleString('ja-JP');
 }
 
 function formatPercentage(value) {
@@ -2911,24 +2909,6 @@ function updatePrivacyControls() {
     button.setAttribute('aria-pressed', String(state.hideAmounts));
     button.querySelector('use').setAttribute('href', state.hideAmounts ? '#icon-eye-off' : '#icon-eye');
     document.getElementById('settings-hide-amounts').checked = state.hideAmounts;
-    // Hide number inputs from both sight and accessibility tree. Keep typed values in memory
-    // so toggling privacy does not erase a draft, and prevent submitting unseen amounts.
-    document.querySelectorAll('input[type="number"]').forEach(input => {
-        let mask = input.nextElementSibling;
-        if (!mask?.classList.contains('private-input-mask')) {
-            mask = document.createElement('span');
-            mask.className = 'private-input-mask form-input';
-            mask.textContent = MASKED_AMOUNT;
-            input.after(mask);
-        }
-        input.hidden = state.hideAmounts;
-        input.disabled = state.hideAmounts;
-        mask.hidden = !state.hideAmounts;
-    });
-    document.querySelectorAll('#tab-add-transaction [type="submit"], #btn-open-calc, #btn-apply-calc').forEach(button => { button.disabled = state.hideAmounts; });
-    document.getElementById('private-form-note').hidden = !state.hideAmounts;
-    const sum = [...document.querySelectorAll('#calc-modal input')].reduce((total, input) => total + (Number(input.value) || 0), 0);
-    document.getElementById('calc-sum-total').textContent = formatCurrency(sum);
 }
 
 // Demo actions deliberately never call the API or save records in the real cache.

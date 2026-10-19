@@ -1017,11 +1017,10 @@ input:focus, select:focus, textarea:focus { border: 2px solid var(--md-sys-color
 .amounts-hidden #annual-savings-rate, .amounts-hidden .expense-entry-amount { color: var(--md-sys-color-on-surface) !important; }
 .amounts-hidden .is-over-budget { background: var(--md-sys-color-surface-container); color: var(--md-sys-color-on-surface); }
 .amounts-hidden .category-color-dot { background: var(--md-sys-color-outline) !important; }
-.amounts-hidden input[type="number"], .amounts-hidden canvas, .amounts-hidden .chart-toggles-wrapper { display: none !important; }
+.amounts-hidden canvas, .amounts-hidden .chart-toggles-wrapper { display: none !important; }
 /* Static startup values must never flash before JS replaces them with masks. */
 .amounts-hidden .card-value:not(:has(*)) { font-variant-numeric: tabular-nums; }
 html.amounts-hidden:not(.privacy-ready) main { visibility: hidden; }
-.private-input-mask { display: block; min-width: 0; flex: 1; color: var(--md-sys-color-on-surface-variant); }
 .demo-record-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
 .demo-record-actions .btn { min-height: 36px; padding: 6px 12px; font-size: .8rem; }
 .demo-edit-status { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-radius: 12px; background: var(--md-sys-color-secondary-container); }
